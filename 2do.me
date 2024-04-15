@@ -1,0 +1,57 @@
+x gele draad moet op RX van D1 mini!
+x add additional wifi SSIDs
+x check on breadboard
+
+x add meetjestad data
+- add status and error messages to monitor (website)
+- fix light sensor
+
+- additional IFTTT alarm: imaging session active && ESP8266 error
+
+Next Steps
+- Start by setting up the JSON file on the ESP8266.
+- Set up the Raspberry Pi to fetch this JSON file.
+- Implement the logic for sending data to OpenWeatherMap on the Raspberry Pi.
+- Test the OpenWeatherMap API calls.
+- Configure NINA to read from OpenWeatherMap.
+- Implement and test the IFTTT alarm for rain.
+
+testdata:
+
+ObjectTemp,33
+Raining,"Yes"
+Raining,"No"
+RainValue,25
+
+curl "https://api.openweathermap.org/data/2.5/weather?q=London&appid=e453211417bd17e444541b3827822a2a"
+
+https://api.openweathermap.org/data/3.0/onecall/day_summary?lat=51.5474&lon=5.04709&dt=current&appid=e453211417bd17e444541b3827822a2a
+
+curl "https://api.openweathermap.org/data/2.5/weather?stationid=650a2e3d8885c200018ae237&appid=e453211417bd17e444541b3827822a2a"
+
+current_time=$(date +%s)
+curl "https://api.openweathermap.org/data/2.5/onecall/timemachine?lat=51.5474&lon=5.04709&dt=$current_time&appid=e453211417bd17e444541b3827822a2a"
+
+
+curl -X POST "http://api.openweathermap.org/data/3.0/stations?appid=e453211417bd17e444541b3827822a2a" \
+-H "Content-Type: application/json" \
+-d '{
+  "external_id": "NL_TB_BLAAK_01", 
+  "name": "Tilburg Astrofotography Site",
+  "latitude": 51.5474,
+  "longitude": 5.04709,
+  "altitude": 11
+}'
+
+{
+  "ID":"650a2e3d8885c200018ae237",
+  "updated_at":"2023-09-19T23:26:53.523488211Z",
+  "created_at":"2023-09-19T23:26:53.523488146Z",
+  "user_id":"63e3ff60c2990f0007f0214a",
+  "external_id":"NL_TB_BLAAK_01",
+  "name":"Tilburg Astrofotography Site",
+  "latitude":51.5474,"longitude":5.04709,
+  "altitude":11,
+  "rank":10,
+  "source_type":5
+ }
