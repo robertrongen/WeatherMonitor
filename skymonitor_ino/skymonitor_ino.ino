@@ -41,29 +41,20 @@ void loop() {
   lightSensor = myLux.lightStrengthLux();
   Serial.print("LightSensor,");
   Serial.println(lightSensor);
-  // Rain sensor
-  // rainVal = rainSensor();
-  // Serial.print("RainValue,");
-  // Serial.println(rainVal);
 
   boolean isRainingDigital = digitalRead(sensorPinDigital);
-    if (isRainingDigital == 1) {
-      raining = "Yes";
-    } else {
-      raining = "No";
-    }
-    Serial.print("Raining,");
-    Serial.println(raining);
-  // }
+  Serial.print("isRainingDigital,");
+  Serial.println(isRainingDigital);
+  if (isRainingDigital == 1) {
+    raining = "Yes";
+  } else {
+    raining = "No";
+  }
+  Serial.print("Raining,");
+  Serial.println(raining);
 
   delay(5000);
 }
-
-// int rainSensor() {
-//   int rainValue = analogRead(sensorPinAnalog);        // Read the analog value from sensor
-//   int outputValue = map(rainValue, 0, 1023, 100, 0);  // map the 10-bit data to 8-bit data
-//   return outputValue;                                 // Return analog rain value
-// }
 
 void scanDevices() {
     byte error, address;

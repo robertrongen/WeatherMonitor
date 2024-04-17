@@ -56,11 +56,6 @@ String nanoDataBuffer = "";
 // Collect data in JSON file
 DynamicJsonDocument doc(1024);
 
-// IFTTT notification
-const char* host = "maker.ifttt.com";
-const char* apiKey = "dhJGM9-KI-OZ1vktxst18SkrEqIrXoueLfcYR4bIOFt";
-const char* eventName = "SkyMonitor_Alarm";
-
 // Logging to webserver
 #define SERIAL_BUFFER_SIZE 2000
 String serialBuffer = "";
@@ -72,7 +67,6 @@ void setup() {
   delay(1000);
   Serial.begin(115200);
   // while (!Serial);
-  // Serial.println("Serial of D1Mini connected");
   customSerialPrintln("Serial of D1Mini connected");
   startWifiMulti();
   startWebserver();
@@ -85,9 +79,8 @@ void setup() {
 
   tsl.enable();
   if (tsl.begin()) {
-    // Serial.println(F("Found a TSL2591 sensor"));
+    customSerialPrintln.println(F("Found a TSL2591 sensor"));
   } else {
-    // Serial.println(F("No TSL2591 sensor found"));
     customSerialPrintln("No TSL2591 sensor found");
     while (1);
   }
@@ -153,7 +146,7 @@ void handleRoot() {
   html += "<table border='1'>";
   html += "<tr><th>Sensor</th><th>Data</th></tr>"; // Table headers
   String rainingColor = (raining.indexOf("Yes") != -1) ? "#FF0000" : (raining.indexOf("No") != -1) ? "#008000" : "#808080";
-  html += "<tr><td>Is raining?</td><td style='background-color: " + rainingColor + ";'>" + raining + "</td></tr>";
+  html += "<tr><td>Is it raining?</td><td style='background-color: " + rainingColor + ";'>" + raining + "</td></tr>";
   html += "<tr><td>Is it cloudy?</td><td>tbd</td></tr>";
   html += "<tr><td>Is it dark?</td><td>tbd</td></tr>";
   html += "</table>";
@@ -186,37 +179,6 @@ void handleRoot() {
   html += "</body></html>";
   
   server.send(200, "text/html", html);
-}
-
-// SkyMonitor_Alarm 2 IFTTT notification
-void triggerIFTTT() {
-  WiFiClient client;
-
-  if (!client.connect(host, 80)) {
-    customSerialPrintln("Connection to IFTTT failed.");
-    return;
-  }
-
-  String url = "/trigger/";
-  url += eventName;
-  customSerialPrint("Requesting URL: ");
-  customSerialPrintln(url);
-  url += "/with/key/";
-  url += apiKey;
-
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + host + "\r\n" +
-               "Connection: close\r\n\r\n");
-
-  while (client.connected()) {
-    String line = client.readStringUntil('\n');
-    if (line == "\r") {
-      break;
-    }
-  }
-
-  String line = client.readStringUntil('\n');
-  customSerialPrintln(line);
 }
 
 void startWifiMulti() {
@@ -320,19 +282,11 @@ void processSerialData(String data) {
     raining = sensorValue;
     Serial.print("SensorValue Raining Received: ");
     Serial.println(raining);
-    if (raining.indexOf("Yes") != -1) {
-        triggerIFTTT();
-    }
-  // } else if (sensorID == "RainValue") {
-  //   rainValue = sensorValue;
   }
   printNanoData(sensorID, sensorValue);
 }
 
 void printNanoData(String sensor, String value) {
-  // Serial.print(sensor);
-  // Serial.print(": ");
-  // Serial.println(value);
   customSerialPrint(sensor);
   customSerialPrint(": ");
   customSerialPrintln(value);
@@ -353,7 +307,6 @@ void generateSensorJson() {
 
   String jsonStr;
   serializeJson(doc, jsonStr);
-  // Serial.println(jsonStr);
   customSerialPrintln(jsonStr);
 }
 
