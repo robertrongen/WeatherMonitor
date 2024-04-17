@@ -79,7 +79,7 @@ void setup() {
 
   tsl.enable();
   if (tsl.begin()) {
-    customSerialPrintln.println(F("Found a TSL2591 sensor"));
+    customSerialPrintln(F("Found a TSL2591 sensor"));
   } else {
     customSerialPrintln("No TSL2591 sensor found");
     while (1);
