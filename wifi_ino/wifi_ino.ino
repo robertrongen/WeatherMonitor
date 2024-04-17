@@ -54,7 +54,7 @@ String lightSensor, raining;
 String nanoDataBuffer = "";
 
 // Collect data in JSON file
-DynamicJsonDocument doc(1024);
+JsonDocument doc(1024);
 
 // Logging to webserver
 #define SERIAL_BUFFER_SIZE 2000
