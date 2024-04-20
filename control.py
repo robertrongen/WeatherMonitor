@@ -51,7 +51,7 @@ def control_fan_heater():
         dew_point = calculate_dew_point(temperature, humidity)
         dew_point_threshold = temperature - 2
         # Update fan status logic to include CPU temperature check
-        fan_status = "ON" if (temperature > temp_fan_threshold or temperature <= dew_point + 1 or cpu_temperature > cpu_temp_threshold) else "OFF"
+        fan_status = "ON" if (temperature > ambient_temp_threshold or temperature <= dew_point + 1 or cpu_temperature > cpu_temp_threshold) else "OFF"
         heater_status = "ON" if temperature <= dew_point_threshold else "OFF"
         
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
