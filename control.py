@@ -31,7 +31,6 @@ GPIO.setmode(GPIO.BCM)
 # Setup Relay GPIOs as outputs
 GPIO.setup(Relay_Ch1, GPIO.OUT)
 GPIO.setup(Relay_Ch2, GPIO.OUT)
-GPIO.setup(Relay_Ch3, GPIO.OUT)
 
 def calculate_dew_point(T, RH):
     b = 17.62
