@@ -8,7 +8,6 @@
 */
 
 #include "secrets.h"
-// #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Wire.h>
 #include <ESP8266HTTPClient.h>
@@ -54,7 +53,7 @@ String lightSensor, raining;
 String nanoDataBuffer = "";
 
 // Collect data in JSON file
-JsonDocument doc(1024);
+DynamicJsonDocument doc(1024);
 
 // Logging to webserver
 #define SERIAL_BUFFER_SIZE 2000
@@ -66,8 +65,9 @@ int logIndex = 0;
 void setup() {
   delay(1000);
   Serial.begin(115200);
-  // while (!Serial);
+  while (!Serial);
   customSerialPrintln("Serial of D1Mini connected");
+  
   startWifiMulti();
   startWebserver();
 

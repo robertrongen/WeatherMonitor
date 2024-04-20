@@ -29,7 +29,7 @@ void setup() {
   scanDevices();
 
   // Connect rain sensor
-  pinMode(sensorPinDigital, INPUT);
+  pinMode(sensorPinDigital, INPUT_PULLUP);
 
   // Start light sensor
   myLux.begin(); // Start the light sensor
@@ -44,8 +44,8 @@ void loop() {
 
   boolean isRainingDigital = digitalRead(sensorPinDigital);
   Serial.print("isRainingDigital,");
-  Serial.println(isRainingDigital);
-  if (isRainingDigital == 1) {
+  // Serial.println(isRainingDigital);
+  if (isRainingDigital == 0) {
     raining = "Yes";
   } else {
     raining = "No";
