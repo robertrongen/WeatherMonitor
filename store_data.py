@@ -1,4 +1,7 @@
 import sqlite3
+from logging import setup_logger
+
+logger = setup_logger('store_data', 'store_data.log')
 
 DATABASE_NAME = "sky_data.db"
 
@@ -35,7 +38,7 @@ def setup_database():
     conn.close()
 
 def store_sky_data(data):
-    print("Attempting to store data:", data)
+    logger.info("Attempting to store data:", data)
     conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
     try:
@@ -83,9 +86,9 @@ def store_sky_data(data):
             data['bortle']
         ))
         conn.commit()
-        print("Data stored successfully")
+        logger.info("Data stored successfully")
     except Exception as e:
-        print("Failed to store data:", e)
+        logger.critical("Failed to store data:", e)
     finally:
         conn.close()
 

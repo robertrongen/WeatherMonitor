@@ -8,7 +8,10 @@ import schedule
 import math
 import serial
 import json
+from logging import setup_logger
 from store_data import store_sky_data  # Import your data storage module
+
+logger = setup_logger('control', 'control.log')
 
 # Threshold Settings
 ambient_temp_threshold = 20
@@ -53,7 +56,7 @@ def fetch_serial_data():
         if line:
             return json.loads(line)
     except Exception as e:
-        print(f"Failed to read serial data: {e}")
+        logger.warning(f"Failed to read serial data: {e}")
         return {}
 
 def fetch_temp_humidity():
@@ -61,11 +64,12 @@ def fetch_temp_humidity():
     try:
         response = requests.get(url)
         data = response.json()
+        logger.info("Fetched data:", data)  # Debugging statement
         temperature = data[0]['data']['temperature']
         humidity = data[0]['data']['humidity']
         return temperature, humidity
     except:
-        print("Failed to fetch data")
+        logger.warning("Failed to fetch data")
         return None, None  # Return None if there's an error
 
 # Function to control fan and heater based on temperature and humidity
@@ -94,13 +98,14 @@ def control_fan_heater():
             "cpu_temperature": cpu_temperature,
             **serial_data
         }
- 
+
+        logger.info("Data to be stored:", data)  # Debugging statement
         store_sky_data(data)
 
 # Schedule to check temperature and humidity every 10 minutes
 schedule.every(10).minutes.do(control_fan_heater)
 
-print("Setup complete, running automated tasks.")
+logger.info("Setup complete, running automated tasks.")
 
 if __name__ == '__main__':
     try:
