@@ -28,7 +28,7 @@ def calculate_indicators(ambient_temperature, sky_temperature, sqm_lux):
 def calculate_dew_point(T, RH):
     b = 17.62
     c = 243.12
-    gamma = (b * T / (c + T)) + math.log(RH / 100.0)
+    gamma = (b * T / (c + T)) + log(RH / 100.0)
     dew_point = (c * gamma) / (b - gamma)
     return dew_point
 
