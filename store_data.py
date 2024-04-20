@@ -24,7 +24,6 @@ def setup_database():
             sky_temperature REAL,
             ambient_temperature REAL,
             sqm_ir INTEGER,
-            sqm_full INTEGER,
             sqm_visible INTEGER,
             sqm_lux REAL,
             cloud_coverage REAL,
@@ -56,7 +55,6 @@ def store_sky_data(data):
                 sky_temperature, 
                 ambient_temperature, 
                 sqm_ir, 
-                sqm_full, 
                 sqm_visible, 
                 sqm_lux, 
                 cloud_coverage, 
@@ -64,7 +62,7 @@ def store_sky_data(data):
                 brightness, 
                 bortle
             )
-            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data['temperature'],
             data['humidity'],
@@ -77,7 +75,6 @@ def store_sky_data(data):
             data['sky_temperature'],
             data['ambient_temperature'],
             data['sqm_ir'],
-            data['sqm_full'],
             data['sqm_visible'],
             data['sqm_lux'],
             data['cloud_coverage'],

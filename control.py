@@ -3,24 +3,24 @@
 # -*- coding:utf-8 -*-
 import RPi.GPIO as GPIO
 import time
-import requests
 import schedule
-import math
-import serial
-import json
-from app_logging import setup_logger
+from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature
+from weather_indicators import calculate_indicators, calculate_dew_point
 from store_data import store_sky_data  # Import your data storage module
+from app_logging import setup_logger
 
 logger = setup_logger('control', 'control.log')
 
-# Threshold Settings
+# Settings
 ambient_temp_threshold = 20
 cpu_temp_threshold = 65
+interval_time = 5 # minutes
+sleep_time = 60 # seconds
 
-# Serial setup
 serial_port = '/dev/ttyUSB0'
 baud_rate = 115200
-ser = serial.Serial(serial_port, baud_rate, timeout=1)
+
+temp_hum_url = 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1'
 
 # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
 Relay_Ch1 = 26  # Fan
@@ -35,50 +35,19 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(Relay_Ch1, GPIO.OUT)
 GPIO.setup(Relay_Ch2, GPIO.OUT)
 
-def calculate_dew_point(T, RH):
-    b = 17.62
-    c = 243.12
-    gamma = (b * T / (c + T)) + math.log(RH / 100.0)
-    dew_point = (c * gamma) / (b - gamma)
-    return dew_point
-
-def get_cpu_temperature():
-    try:
-        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-            temp = float(f.read()) / 1000.0  # Convert millidegree Celsius to degree Celsius
-        return temp
-    except:
-        return None
-
-def fetch_serial_data():
-    try:
-        line = ser.readline().decode('utf-8').strip()
-        if line:
-            return json.loads(line)
-    except Exception as e:
-        logger.warning(f"Failed to read serial data: {e}")
-        return {}
-
-def fetch_temp_humidity():
-    url = 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1'
-    try:
-        response = requests.get(url)
-        data = response.json()
-        logger.info("Fetched data:", data)  # Debugging statement
-        temperature = data[0]['data']['temperature']
-        humidity = data[0]['data']['humidity']
-        return temperature, humidity
-    except:
-        logger.warning("Failed to fetch data")
-        return None, None  # Return None if there's an error
-
 # Function to control fan and heater based on temperature and humidity
 def control_fan_heater():
-    temperature, humidity = fetch_temp_humidity()
-    serial_data = fetch_serial_data()
-    cpu_temperature = get_cpu_temperature()  # Get the CPU temperature
+    temperature, humidity = get_temperature_humidity(temp_hum_url)
+    serial_data = get_serial_data(serial_port, baud_rate)
+    cpu_temperature = get_cpu_temperature()
 
-    if temperature is not None and humidity is not None and serial_data:
+    if temperature and humidity and serial_data:
+        # Extract required fields from serial_data or other sources
+        ambient_temperature = temperature  # Assuming ambient temperature comes from get_temperature_humidity
+        sky_temperature = serial_data.get('sky_temperature')
+        sqm_lux = serial_data.get('sqm_lux')
+        cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(ambient_temperature, sky_temperature, sqm_lux)
+
         dew_point = calculate_dew_point(temperature, humidity)
         dew_point_threshold = temperature - 2
         # Update fan status logic to include CPU temperature check
@@ -96,20 +65,24 @@ def control_fan_heater():
             "fan_status": fan_status,
             "heater_status": heater_status,
             "cpu_temperature": cpu_temperature,
-            **serial_data
+            **serial_data,
+            "cloud_coverage": cloud_coverage,
+            "cloud_coverage_indicator": cloud_coverage_indicator,
+            "brightness": brightness,
+            "bortle": bortle
         }
 
-        logger.info("Data to be stored:", data)  # Debugging statement
+        logger.debug("Storing data: %s", data)
         store_sky_data(data)
 
 # Schedule to check temperature and humidity every 10 minutes
-schedule.every(10).minutes.do(control_fan_heater)
+schedule.every(interval_time).minutes.do(control_fan_heater)
 
 logger.info("Setup complete, running automated tasks.")
 
 if __name__ == '__main__':
     try:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(sleep_time)
     finally:
         GPIO.cleanup()
