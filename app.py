@@ -12,7 +12,7 @@ def get_db_connection():
 @app.route('/')
 def index():
     conn = get_db_connection()
-    data = conn.execute('SELECT * FROM observations ORDER BY timestamp DESC').fetchall()
+    data = conn.execute('SELECT * FROM sky_data ORDER BY timestamp DESC').fetchall()
     conn.close()
     return render_template('index.html', data=data)
 
