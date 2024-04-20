@@ -1,4 +1,5 @@
 import unittest
+from math import log10
 from unittest.mock import patch, MagicMock
 import control  # This assumes your main script is named 'control.py'
 
@@ -13,19 +14,19 @@ class TestControlSystem(unittest.TestCase):
             'cpu_temperature': 55
         }
         
-        # Expected outcomes for the mocked data
+        # Dynamically calculate expected indicators based on actual formulas used
         self.expected_indicators = {
             'cloud_coverage': (self.sample_data['sky_temperature'] - self.sample_data['temperature']) / self.sample_data['temperature'],
             'cloud_coverage_indicator': self.sample_data['temperature'] - self.sample_data['sky_temperature'],
-            'brightness': 22.0 - 2.512 * (self.sample_data['sqm_lux']**-1),
-            'bortle': 1539.7 * 2.7 ** (-0.28 * (22.0 - 2.512 * (self.sample_data['sqm_lux']**-1)))
+            'brightness': 22.0 - 2.512 * log10(self.sample_data['sqm_lux']),
+            'bortle': 1539.7 * 2.7 ** (-0.28 * (22.0 - 2.512 * log10(self.sample_data['sqm_lux'])))
         }
 
     @patch('control.GPIO.output')
     @patch('control.store_sky_data')
-    @patch('control.get_cpu_temperature')
-    @patch('control.get_serial_data')
-    @patch('control.get_temperature_humidity')
+    @patch('control.get_cpu_temperature', return_value=55)
+    @patch('control.get_serial_data', return_value={'sky_temperature': 15.5, 'sqm_lux': 200})
+    @patch('control.get_temperature_humidity', return_value=(20.5, 50))
     def test_control_fan_heater(self, mock_get_temp_humidity, mock_get_serial_data, mock_get_cpu_temperature, mock_store_sky_data, mock_gpio_output):
         # Set return values for mocks
         mock_get_temp_humidity.return_value = (self.sample_data['temperature'], self.sample_data['humidity'])
