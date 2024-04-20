@@ -1,5 +1,5 @@
 import sqlite3
-from logging import setup_logger
+from app_logging import setup_logger
 
 logger = setup_logger('store_data', 'store_data.log')
 

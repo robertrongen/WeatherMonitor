@@ -8,7 +8,7 @@ import schedule
 import math
 import serial
 import json
-from logging import setup_logger
+from app_logging import setup_logger
 from store_data import store_sky_data  # Import your data storage module
 
 logger = setup_logger('control', 'control.log')
