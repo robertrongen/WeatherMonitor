@@ -1,4 +1,4 @@
-# web_server.py
+# submit_data.py
 
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from zeroconf import ServiceInfo, Zeroconf, NonUniqueNameException
