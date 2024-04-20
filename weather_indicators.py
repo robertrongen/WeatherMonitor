@@ -1,4 +1,5 @@
-from math import log10
+# weather_indicators.py
+from math import log, log10
 
 def calculate_indicators(ambient_temperature, sky_temperature, sqm_lux):
     try:
