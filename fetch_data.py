@@ -3,7 +3,7 @@ import requests
 import serial
 import json
 
-ser = none
+ser = None
 
 def get_serial_data(port, rate):
     """
