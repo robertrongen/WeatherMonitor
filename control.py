@@ -16,11 +16,9 @@ ambient_temp_threshold = 20
 cpu_temp_threshold = 65
 interval_time = 5 # minutes
 sleep_time = 60 # seconds
-
+temp_hum_url = 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1'
 serial_port = '/dev/ttyUSB0'
 baud_rate = 115200
-
-temp_hum_url = 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1'
 
 # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
 Relay_Ch1 = 26  # Fan
@@ -40,6 +38,10 @@ def control_fan_heater():
     temperature, humidity = get_temperature_humidity(temp_hum_url)
     serial_data = get_serial_data(serial_port, baud_rate)
     cpu_temperature = get_cpu_temperature()
+    if serial_data:
+        print("Processing data:", serial_data)
+    else:
+        print("No valid data received.")
 
     if temperature and humidity and serial_data:
         # Extract required fields from serial_data or other sources

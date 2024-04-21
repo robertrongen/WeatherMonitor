@@ -7,19 +7,26 @@ ser = None
 
 def get_serial_data(port, rate):
     """
-    Fetch data from a serial device. This could be an Arduino or similar device collecting local sensor data.
-    Returns a dictionary with sky_temperature and sqm_lux.
+    Fetches data from a serial device, attempting to parse JSON strings.
+    Ignores non-JSON messages and continues reading until a valid JSON is found.
     """
-    global ser
+    ser = serial.Serial(port, rate, timeout=1)
     try:
-        if ser is None:
-            ser = serial.Serial(port, rate, timeout=1)
-        line = ser.readline().decode('utf-8').strip()
-        return json.loads(line) if line else {}
+        while True:
+            line = ser.readline().decode('utf-8').strip()
+            if line:
+                logging.debug(f"Received line: {line}")
+                try:
+                    data = json.loads(line)
+                    logging.info(f"Received valid JSON data: {data}")
+                    return data
+                except json.JSONDecodeError:
+                    logging.debug("Failed to decode JSON, skipping line.")
     except Exception as e:
-        print(f"Failed to read serial data: {e}")
-        logger.warning(f"Failed to read serial data: {e}")
-        return {}
+        logging.error(f"Error reading from serial port: {e}")
+    finally:
+        ser.close()
+    return None
 
 def get_temperature_humidity(url):
     """
@@ -49,4 +56,7 @@ def get_cpu_temperature():
     except Exception as e:
         print(f"Failed to fetch CPU temperature: {e}")
         return None
+
+if __name__ == "__main__":
+    read_serial_data(serial_port)
 
