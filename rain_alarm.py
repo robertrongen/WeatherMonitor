@@ -29,7 +29,7 @@ def check_rain_alert():
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     with serial.Serial(settings["serial_port"], settings["baud_rate"], timeout=1) as ser:
         line = ser.readline().decode().strip()
-        if "isRainingDigital: Raining,Yes" in line:
+        if "Raining,Yes" in line:
             message = "Alert: It's raining! Please check your surroundings."
             print("Rain detected, sending notification...")
             send_pushover_notification(user_key, api_token, message)

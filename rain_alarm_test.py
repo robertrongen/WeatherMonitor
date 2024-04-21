@@ -8,7 +8,7 @@ class TestRainAlarm(unittest.TestCase):
     def test_rain_alert(self, mock_notification, mock_serial):
         # Setup mock for serial port
         mock_ser = MagicMock()
-        mock_ser.readline.return_value = b'isRainingDigital: Raining,Yes\n'
+        mock_ser.readline.return_value = b'Raining,Yes\n'
         mock_serial.return_value.__enter__.return_value = mock_ser
 
         # Call the function that checks for rain and sends notification
