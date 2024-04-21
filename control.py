@@ -6,36 +6,13 @@ import time
 import schedule
 import sqlite3
 import json
-import os
+import settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature
 from weather_indicators import calculate_indicators, calculate_dew_point
 from store_data import store_sky_data  # Import your data storage module
 from app_logging import setup_logger
+
 logger = setup_logger('control', 'control.log')
-
-def load_settings():
-    default_settings = {
-        "ambient_temp_threshold": 20,
-        "cpu_temp_threshold": 65,
-        "interval_time": 300,  # seconds
-        "sleep_time": 60,  # seconds
-        "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-        "serial_port": "/dev/ttyUSB0",
-        "baud_rate": 115200
-    }
-
-    settings_path = 'settings.json'
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, 'r') as file:
-                return json.load(file)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Error decoding JSON from settings file: {e}. Using default settings.")
-            return default_settings
-    else:
-        logger.info("Settings file not found. Using default settings.")
-        return default_settings
-
 settings = load_settings()  # Initial load of settings
 
 # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
