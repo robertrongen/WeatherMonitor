@@ -3,30 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Dashboard</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>Sky Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-colorschemes"></script>
+    <style>
+        body { background-color: #000000; color: #FFFFFF; font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; color: #FFFFFF; width: 100%;}
+        td, th { border: 1px solid #FFFFFF; padding: 8px; text-align: left; }
+        th { background-color: #333333; }
+        a, a:visited { color: #1E90FF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .alert { background-color: #FF0000; color: #FFFFFF; padding: 10px; }
+    </style>
 </head>
 <body>
-    <div id="app"> <!-- Ensure Vue controls this part of the DOM -->
-        <h1>Data Dashboard</h1>
+    <div id="app">
+        <h1>Last Weather Indicators</h1>
         <table>
             <thead>
                 <tr>
                     <th>Timestamp</th>
-                    <th>Temperature</th>
-                    <th>Humidity</th>
-                    <th>Dew Point</th>
-                    <th>Fan Status</th>
-                    <th>Heater Status</th>
-                    <th>CPU Temperature</th>
-                    <th>Raining</th>
+                    <th>Rain</th>
                     <th>Light</th>
                     <th>Sky Temperature</th>
-                    <th>Ambient Temperature</th>
-                    <th>SQM IR</th>
-                    <th>SQM Full</th>
-                    <th>SQM Visible</th>
-                    <th>SQM Lux</th>
+                    <th>Temperature</th>
+                    <th>Humidity</th>
+                    <th>SQM-IR</th>
+                    <th>SQM-Full</th>
+                    <th>SQM-Visible</th>
+                    <th>SQM-Lux</th>
                     <th>Cloud Coverage</th>
                     <th>Cloud Coverage Indicator</th>
                     <th>Brightness</th>
@@ -36,16 +43,11 @@
             <tbody>
                 <tr v-for="row in rows">
                     <td>[[ row.timestamp ]]</td>
-                    <td>[[ row.temperature ]] °C</td>
-                    <td>[[ row.humidity ]] %</td>
-                    <td>[[ row.dew_point ]] °C</td>
-                    <td>[[ row.fan_status ]]</td>
-                    <td>[[ row.heater_status ]]</td>
-                    <td>[[ row.cpu_temperature ]] °C</td>
                     <td>[[ row.raining ]]</td>
                     <td>[[ row.light ]]</td>
                     <td>[[ row.sky_temperature ]] °C</td>
                     <td>[[ row.ambient_temperature ]] °C</td>
+                    <td>[[ row.humidity ]]%</td>
                     <td>[[ row.sqm_ir ]]</td>
                     <td>[[ row.sqm_full ]]</td>
                     <td>[[ row.sqm_visible ]]</td>
@@ -57,16 +59,107 @@
                 </tr>
             </tbody>
         </table>
-    </div>
 
-    <script>
-        var app = new Vue({
-            el: '#app',
-            delimiters: ['[[', ']]'], // Custom delimiters for Vue
-            data: {
-                rows: {{ data|tojson|safe }}
-            }
-        });
-    </script>
+        <h1>Observations</h1>
+        <a href="/observations">View All Observations</a><br/><br/>
+        <form action="/submit_observation" method="post">
+            <label for="cloud_condition">Cloud Condition:</label>
+            <select name="cloud_condition">
+                <option value="clear">Clear</option>
+                <option value="partially_clouded">Partially Clouded</option>
+                <option value="fully_clouded">Fully Clouded</option>
+            </select>
+            <label for="rain_condition">Rain:</label>
+            <select name="rain_condition">
+                <option value="no">No</option>
+                <option value="light">Light</option>
+                <option value="heavy">Heavy</option>
+            </select>
+            <label for="moon_visibility">Moon Visibility:</label>
+            <select name="moon_visibility">
+                <option value="not_visible">Not Visible</option>
+                <option value="low">Low</option>
+                <option value="high">High</option>
+            </select>
+            <input type="submit" value="Submit Observation">
+        </form>
+        {% if message %}
+            <div class="alert">
+                {{ message }}
+            </div>
+        {% endif %}
+        <h1>Charts</h1>
+        <form method="get" action="/">
+            <input type="checkbox" name="show_all" id="show_all" {{ 'checked' if show_all }}>
+            <label for="show_all">Show All Data</label>
+            <input type="submit" value="Apply Filter">
+        </form>
+        <h2>Cloud Coverage Indicator</h2>
+        <canvas id="cloudCoverageIndicatorChart"></canvas>
+        <h2>Sky Brightness</h2>
+        <canvas id="brightnessChart"></canvas>
+        
+        <script>
+            var app = new Vue({
+                el: '#app',
+                delimiters: ['[[', ']]'], // Custom delimiters for Vue
+                data: {
+                    rows: {{ data|tojson|safe }}
+                }
+            });
+
+            // Dark theme options for Chart.js
+            var darkThemeOptions = {
+                scales: {
+                    x: {
+                        grid: { color: '#666666' },
+                        ticks: { color: '#FFFFFF' }
+                    },
+                    y: {
+                        grid: { color: '#666666' },
+                        ticks: { color: '#FFFFFF' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#FFFFFF' }
+                    }
+                }
+            };
+
+            // Initialize Cloud Coverage Indicator Chart
+            var ctx1 = document.getElementById('cloudCoverageIndicatorChart').getContext('2d');
+            var cloudCoverageIndicatorChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: {{ timestamps|tojson }},
+                    datasets: [{
+                        label: 'Cloud Coverage Indicator',
+                        data: {{ cloud_coverage_indicators|tojson }},
+                        borderColor: 'lightblue',
+                        fill: false
+                    }]
+                },
+                options: darkThemeOptions
+            });
+
+            // Initialize Brightness Chart
+            var ctx2 = document.getElementById('brightnessChart').getContext('2d');
+            var brightnessChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: {{ timestamps|tojson }},
+                    datasets: [{
+                        label: 'Brightness',
+                        data: {{ brightnesses|tojson }},
+                        borderColor: 'red',
+                        fill: false
+                    }]
+                },
+                options: darkThemeOptions
+            });
+        </script>
+    </div>
 </body>
 </html>
+
