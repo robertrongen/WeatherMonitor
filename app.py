@@ -17,9 +17,11 @@ def index():
     conn = get_db_connection()
     rows = conn.execute('SELECT * FROM sky_data ORDER BY timestamp DESC').fetchall()
     timestamps = [row['timestamp'] for row in rows]  # Assuming 'timestamp' is a column in your 'sky_data'
-    # conn.close()
+    conn.close()
 
     return render_template('index.html', data=rows, timestamps=timestamps)
+
+@app.route('/test')
 
 def index_test():
 
