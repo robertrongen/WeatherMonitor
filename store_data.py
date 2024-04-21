@@ -7,8 +7,9 @@ logger = setup_logger('store_data', 'store_data.log')
 
 DATABASE_NAME = "sky_data.db"
 
-def setup_database():
-    conn = sqlite3.connect(DATABASE_NAME)
+def setup_database(conn=None):
+    if conn is None:
+        conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
 
     # Correctly define the CREATE TABLE SQL with proper data types and comma separations
