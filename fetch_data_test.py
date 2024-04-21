@@ -8,8 +8,12 @@ def setup_logging():
 
 def fetch_and_print_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
     """
-    Continuously reads from a serial port and prints JSON data when received.
+    Reads from a serial port until it receives a valid JSON string, prints it, and then stops.
     """
+    # Open the serial port
+    ser = serial.Serial(serial_port, baud_rate, timeout=1)
+    logging.info(f"Opened serial port {serial_port} at {baud_rate} baud rate.")
+    
     # Open the serial port
     ser = serial.Serial(serial_port, baud_rate, timeout=1)
     logging.info(f"Opened serial port {serial_port} at {baud_rate} baud rate.")
@@ -24,6 +28,7 @@ def fetch_and_print_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
                     data = json.loads(line)
                     print("Received JSON data:", json.dumps(data, indent=4))
                     logging.info("Valid JSON data received and printed.")
+                    break  # Stop after successfully receiving and printing a JSON object
                 except json.JSONDecodeError:
                     # Ignore lines that are not valid JSON
                     logging.debug("Line is not valid JSON, skipping.")
@@ -37,4 +42,4 @@ def fetch_and_print_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
 
 if __name__ == '__main__':
     setup_logging()
-    fetch_and_print_json()
+    fetch_and_print_first_json()
