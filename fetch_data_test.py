@@ -6,7 +6,7 @@ def setup_logging():
     """Setup basic logging configuration."""
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def fetch_and_print_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
+def fetch_and_print_first_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
     """
     Reads from a serial port until it receives a valid JSON string, prints it, and then stops.
     """
