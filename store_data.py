@@ -39,7 +39,7 @@ def setup_database(conn=None):
     conn.commit()
     conn.close()
 
-def store_sky_data(data):
+def store_sky_data(data, conn):
     logger.info(f"Attempting to store data: {data}")
     conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()

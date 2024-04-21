@@ -58,6 +58,8 @@ def control_fan_heater():
         GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
 
         # Package data for storage, including CPU temperature
+        conn = sqlite3.connect('path_to_your_database.db')
+
         data = {
             "temperature": temperature,
             "humidity": humidity,
@@ -73,7 +75,9 @@ def control_fan_heater():
         }
 
         logger.debug("Storing data: %s", data)
-        store_sky_data(data)
+        store_sky_data(data, conn)
+        conn.close()
+
 
 # Schedule to check temperature and humidity every 10 minutes
 schedule.every(interval_time).minutes.do(control_fan_heater)
