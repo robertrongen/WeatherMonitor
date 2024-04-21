@@ -104,6 +104,7 @@ if __name__ == '__main__':
     try:
         while True:
             schedule.run_pending()
+            settings = load_settings()
             time.sleep(settings["interval_time"])  # sleep_time could be adjusted to match your timing needs
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
