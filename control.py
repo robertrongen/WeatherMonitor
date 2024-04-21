@@ -15,8 +15,8 @@ logger = setup_logger('control', 'control.log')
 # Settings
 ambient_temp_threshold = 20
 cpu_temp_threshold = 65
-interval_time = 5 # minutes
-sleep_time = 60 # seconds
+interval_time = 0.2 # minutes
+sleep_time = 2 # seconds
 temp_hum_url = 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1'
 serial_port = '/dev/ttyUSB0'
 baud_rate = 115200
@@ -31,8 +31,7 @@ GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 
 # Setup Relay GPIOs as outputs
-GPIO.setup(Relay_Ch1, GPIO.OUT)
-GPIO.setup(Relay_Ch2, GPIO.OUT)
+GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 
 # Function to control fan and heater based on temperature and humidity
 def control_fan_heater():
@@ -81,15 +80,17 @@ def control_fan_heater():
         store_sky_data(data, conn)
         conn.close()
 
-
 # Schedule to check temperature and humidity every 10 minutes
 schedule.every(interval_time).minutes.do(control_fan_heater)
-
 logger.info("Setup complete, running automated tasks.")
 
 if __name__ == '__main__':
     try:
-        schedule.run_pending()
-        time.sleep(sleep_time)
+        while True:
+            schedule.run_pending()
+            time.sleep(sleep_time)  # sleep_time could be adjusted to match your timing needs
+    except KeyboardInterrupt:
+        logger.info("Program stopped by user")
     finally:
-        GPIO.cleanup()
+        GPIO.cleanup()  # Ensure cleanup is called on exit
+        logger.info("GPIO cleanup executed")

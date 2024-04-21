@@ -2,6 +2,9 @@
 import requests
 import serial
 import json
+import logging
+from app_logging import setup_logger
+logger = setup_logger('fetch_data', 'fetch_data.log')
 
 ser = None
 
@@ -36,12 +39,18 @@ def get_temperature_humidity(url):
     try:
         response = requests.get(url)
         data = response.json()
-        temperature = data['current']['temp_c']
-        humidity = data['current']['humidity']
-        return temperature, humidity
+        if data:
+            # Access the first item in the list, then extract temperature and humidity
+            first_record = data[0]
+            temperature = first_record['temperature']
+            humidity = first_record['humidity']
+            return temperature, humidity
+        else:
+            logger.warning("Received empty data")
+            return None, None
     except Exception as e:
         print(f"Failed to fetch temperature and humidity: {e}")
-        logger.warning("Failed to fetch data")
+        logger.warning(f"Failed to fetch temperature and humidity: {e}")
         return None, None
 
 def get_cpu_temperature():
