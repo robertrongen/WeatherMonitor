@@ -1,8 +1,9 @@
 import unittest
-from math import log10
 from unittest.mock import patch
-from weather_indicators import calculate_indicators
+import sqlite3
+from math import log10
 import control
+from weather_indicators import calculate_indicators
 
 class TestControlSystem(unittest.TestCase):
     @patch('control.store_sky_data')
