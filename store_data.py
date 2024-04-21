@@ -37,7 +37,7 @@ def setup_database(conn=None):
     """)
 
     conn.commit()
-    conn.close()
+    # conn.close()
 
 def store_sky_data(data, conn):
     logger.info(f"Attempting to store data: {data}")
