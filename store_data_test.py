@@ -1,7 +1,6 @@
 # store_data_test.py
 import unittest
 import sqlite3
-from datetime import datetime
 from store_data import store_sky_data, setup_database
 
 class TestDatabaseIntegration(unittest.TestCase):

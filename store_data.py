@@ -41,7 +41,7 @@ def setup_database(conn=None):
 
 def store_sky_data(data, conn):
     logger.info(f"Attempting to store data: {data}")
-    conn = sqlite3.connect(DATABASE_NAME)
+    # conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -89,8 +89,6 @@ def store_sky_data(data, conn):
         logger.info("Data stored successfully")
     except Exception as e:
         logger.critical(f"Failed to store data: {e}")
-    finally:
-        conn.close()
 
 if __name__ == "__main__":
     setup_database()  # Set up the database once at the start
