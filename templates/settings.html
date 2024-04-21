@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <title>Settings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </head>
 <body>
-    <h1>Update Settings</h1>
-    <form action="{{ url_for('settings_page') }}" method="post">
-        <label for="ambient_temp_threshold">Ambient Temperature Threshold:</label>
-        <input type="number" name="ambient_temp_threshold" value="{{ settings['ambient_temp_threshold'] }}"><br>
-        <label for="cpu_temp_threshold">CPU Temperature Threshold:</label>
-        <input type="number" name="cpu_temp_threshold" value="{{ settings['cpu_temp_threshold'] }}"><br>
-        <label for="interval_time">Interval Time (minutes):</label>
-        <input type="text" name="interval_time" value="{{ settings['interval_time'] }}"><br>
-        <label for="sleep_time">Sleep Time (seconds):</label>
-        <input type="number" name="sleep_time" value="{{ settings['sleep_time'] }}"><br>
-        <label for="temp_hum_url">Temperature & Humidity URL:</label>
-        <input type="text" name="temp_hum_url" value="{{ settings['temp_hum_url'] }}"><br>
-        <label for="serial_port">Serial Port:</label>
-        <input type="text" name="serial_port" value="{{ settings['serial_port'] }}"><br>
-        <label for="baud_rate">Baud Rate:</label>
-        <input type="number" name="baud_rate" value="{{ settings['baud_rate'] }}"><br>
-        <button type="submit">Update Settings</button>
-    </form>
+    <div class="container">
+        <h1 class="mt-5">Update Settings</h1>
+        <form action="{{ url_for('settings_page') }}" method="post" class="mt-3">
+            <label for="ambient_temp_threshold">Ambient Temperature Threshold:</label>
+            <input type="number" name="ambient_temp_threshold" value="{{ settings['ambient_temp_threshold'] }}"><br>
+            <label for="cpu_temp_threshold">CPU Temperature Threshold:</label>
+            <input type="number" name="cpu_temp_threshold" value="{{ settings['cpu_temp_threshold'] }}"><br>
+            <label for="interval_time">Interval Time (seconds):</label>
+            <input type="text" name="interval_time" value="{{ settings['interval_time'] }}"><br>
+            <label for="sleep_time">Sleep Time (seconds):</label>
+            <input type="number" name="sleep_time" value="{{ settings['sleep_time'] }}"><br>
+            <label for="temp_hum_url">Temperature & Humidity URL:</label>
+            <input type="text" name="temp_hum_url" value="{{ settings['temp_hum_url'] }}"><br>
+            <label for="serial_port">Serial Port:</label>
+            <input type="text" name="serial_port" value="{{ settings['serial_port'] }}"><br>
+            <label for="baud_rate">Baud Rate:</label>
+            <button type="submit" class="btn btn-primary mt-2">Update Settings</button>
+        </form>
+    </div>
 </body>
+
 </html>
