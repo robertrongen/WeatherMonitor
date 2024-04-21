@@ -1,5 +1,5 @@
 import logging
-from logging.handlers import SMTPHandler
+import logging.handlers
 from dotenv import load_dotenv
 import os
 
@@ -35,6 +35,12 @@ def setup_logger(name, log_file, level=logging.DEBUG):
     file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
+
+    # Console handler for output to stdout (useful for systemd)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
 
     # Email and Slack handlers
     setup_email_logging(logger)
