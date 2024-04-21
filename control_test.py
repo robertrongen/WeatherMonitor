@@ -1,4 +1,5 @@
 import unittest
+from math import log10
 from unittest.mock import patch
 from weather_indicators import calculate_indicators
 import control
@@ -53,6 +54,6 @@ class TestWeatherIndicators(unittest.TestCase):
             msg=f"Test for Brightness Failed: Expected {expected_brightness}, Got {brightness}")
         self.assertAlmostEqual(bortle, expected_bortle, places=5,
             msg=f"Test for Bortle Failed: Expected {expected_bortle}, Got {bortle}")
-            
+
 if __name__ == '__main__':
     unittest.main()
