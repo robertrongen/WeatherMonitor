@@ -22,25 +22,21 @@ def index():
     return render_template('index.html', data=rows, timestamps=timestamps)
 
 @app.route('/test')
-
 def index_test():
-
-    # Simulation of data fetching from a database or other source
     try:
-        # Suppose rows is fetched properly
+        # Simulation of data fetching from a database or other source
         rows = [
             {'timestamp': '2021-01-01', 'cloud_coverage_indicator': 10},
             {'timestamp': '2021-01-02', 'cloud_coverage_indicator': 20},
         ]
         timestamps = [row['timestamp'] for row in rows]
-        cloud_coverage_indicators = [row.get('cloud_coverage_indicator', 0) for row in rows]
     except Exception as e:
         # In case of error, provide default values
+        rows = []
         timestamps = []
-        cloud_coverage_indicators = []
         print(f"Error fetching data: {e}")
 
-    return render_template('index_test.html', data=rows, timestamps=timestamps)
-
+    return render_template('index_test.html', data=rows, timestamps=json.dumps(timestamps))
+    
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
