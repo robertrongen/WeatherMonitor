@@ -2,7 +2,7 @@
 import os
 import serial
 import requests
-import settings
+from settings import load_settings
 from dotenv import load_dotenv
 from app_logging import setup_logger
 

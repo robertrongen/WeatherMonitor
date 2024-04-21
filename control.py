@@ -6,7 +6,7 @@ import time
 import schedule
 import sqlite3
 import json
-import settings
+from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature
 from weather_indicators import calculate_indicators, calculate_dew_point
 from store_data import store_sky_data  # Import your data storage module
