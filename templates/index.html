@@ -25,15 +25,20 @@
             <thead>
                 <tr>
                     <th>Timestamp</th>
-                    <th>Rain</th>
-                    <th>Light</th>
-                    <th>Sky Temperature</th>
                     <th>Temperature</th>
                     <th>Humidity</th>
-                    <th>SQM-IR</th>
-                    <th>SQM-Full</th>
-                    <th>SQM-Visible</th>
-                    <th>SQM-Lux</th>
+                    <th>Dew Point</th>
+                    <th>Fan Status</th>
+                    <th>Heater Status</th>
+                    <th>CPU Temperature</th>
+                    <th>Raining</th>
+                    <th>Light</th>
+                    <th>Sky Temperature</th>
+                    <th>Ambient Temperature</th>
+                    <th>SQM IR</th>
+                    <th>SQM Full</th>
+                    <th>SQM Visible</th>
+                    <th>SQM Lux</th>
                     <th>Cloud Coverage</th>
                     <th>Cloud Coverage Indicator</th>
                     <th>Brightness</th>
@@ -43,11 +48,16 @@
             <tbody>
                 <tr v-for="row in rows">
                     <td>[[ row.timestamp ]]</td>
+                    <td>[[ row.temperature ]] °C</td>
+                    <td>[[ row.humidity ]] %</td>
+                    <td>[[ row.dew_point ]] °C</td>
+                    <td>[[ row.fan_status ]]</td>
+                    <td>[[ row.heater_status ]]</td>
+                    <td>[[ row.cpu_temperature ]] °C</td>
                     <td>[[ row.raining ]]</td>
                     <td>[[ row.light ]]</td>
                     <td>[[ row.sky_temperature ]] °C</td>
                     <td>[[ row.ambient_temperature ]] °C</td>
-                    <td>[[ row.humidity ]]%</td>
                     <td>[[ row.sqm_ir ]]</td>
                     <td>[[ row.sqm_full ]]</td>
                     <td>[[ row.sqm_visible ]]</td>
@@ -60,7 +70,7 @@
             </tbody>
         </table>
 
-        <h1>Observations</h1>
+        <!-- <h1>Observations</h1>
         <a href="/observations">View All Observations</a><br/><br/>
         <form action="/submit_observation" method="post">
             <label for="cloud_condition">Cloud Condition:</label>
@@ -158,8 +168,18 @@
                 },
                 options: darkThemeOptions
             });
-        </script>
+        </script> -->
     </div>
+
+    <script>
+        var app = new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'], // Custom delimiters for Vue
+            data: {
+                rows: {{ data|tojson|safe }}
+            }
+        });
+    </script>
 </body>
 </html>
 
