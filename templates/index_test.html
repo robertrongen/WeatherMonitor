@@ -3,13 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <title>Test Dashboard</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
 </head>
 <body>
     <h1>Data Dashboard - Test</h1>
+    <div id="dataDisplay"></div>
     <script>
-        // Ensure the data passed to JavaScript is properly parsed
+        var data = {{ data|safe }};
         var timestamps = {{ timestamps|safe }};
-        console.log(timestamps);
+        
+        // Function to display data in a table
+        function displayData(data) {
+            var display = document.getElementById('dataDisplay');
+            var html = '<table>';
+            html += '<tr><th>Timestamp</th><th>Cloud Coverage Indicator</th></tr>';
+
+            data.forEach(function(item) {
+                html += '<tr>';
+                html += '<td>' + item.timestamp + '</td>';
+                html += '<td>' + item.cloud_coverage_indicator + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</table>';
+            display.innerHTML = html;
+        }
+
+        // Call the function to display the data
+        displayData(data);
     </script>
 </body>
 </html>
