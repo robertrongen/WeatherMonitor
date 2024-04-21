@@ -1,8 +1,24 @@
+# app.py
 from flask import Flask, render_template
 import sqlite3
 import json
+import os
 
 app = Flask(__name__)
+# Load initial settings from a JSON file or set default values
+try:
+    with open('settings.json', 'r') as f:
+        settings = json.load(f)
+except FileNotFoundError:
+    settings = {
+        "ambient_temp_threshold": 20,
+        "cpu_temp_threshold": 65,
+        "interval_time": 0.2,
+        "sleep_time": 2,
+        "temp_hum_url": 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1',
+        "serial_port": '/dev/ttyUSB0',
+        "baud_rate": 115200
+    }
 
 def get_db_connection():
     conn = sqlite3.connect('sky_data.db')
@@ -21,6 +37,26 @@ def index():
         conn.close()
 
     return render_template('index.html', data=rows_list, timestamps=json.dumps(timestamps))
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings_page():
+    if request.method == 'POST':
+        # Update settings based on form data
+        settings['ambient_temp_threshold'] = int(request.form['ambient_temp_threshold'])
+        settings['cpu_temp_threshold'] = int(request.form['cpu_temp_threshold'])
+        settings['interval_time'] = float(request.form['interval_time'])
+        settings['sleep_time'] = int(request.form['sleep_time'])
+        settings['temp_hum_url'] = request.form['temp_hum_url']
+        settings['serial_port'] = request.form['serial_port']
+        settings['baud_rate'] = int(request.form['baud_rate'])
+        
+        # Save updated settings to a file
+        with open('settings.json', 'w') as f:
+            json.dump(settings, f, indent=4)
+
+        return redirect(url_for('settings_page'))
+    else:
+        return render_template('settings.html', settings=settings)
 
 @app.route('/test')
 def index_test():
