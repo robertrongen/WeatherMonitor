@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard test</title>
+</head>
+<body>
+    <h1>Data Dashboard</h1>
+    <div id="data-display">
+        <script>
+            var timestamps = {{ timestamps|safe }};
+            var cloudCoverageIndicators = {{ cloud_coverage_indicators|safe }};
+
+            console.log('Timestamps:', timestamps);
+            console.log('Cloud Coverage Indicators:', cloudCoverageIndicators);
+        </script>
+    </div>
+</body>
+</html>
