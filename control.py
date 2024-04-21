@@ -30,11 +30,13 @@ def load_settings():
             with open(settings_path, 'r') as file:
                 return json.load(file)
         except json.JSONDecodeError:
-            print("Error decoding JSON from settings file. Using default settings.")
+            logger.warning("Error decoding JSON from settings file. Using default settings.")
     else:
-        print("Settings file not found. Using default settings.")
+        logger.info("Settings file not found. Using default settings.")
 
     return default_settings
+
+settings = load_settings()  # Initial load of settings
 
 # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
 Relay_Ch1 = 26  # Fan
@@ -50,7 +52,8 @@ GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 
 # Function to control fan and heater based on temperature and humidity
 def control_fan_heater():
-    settings = load_settings()
+    global settings
+    settings = load_settings()  # Refresh settings on each call
     temperature, humidity = get_temperature_humidity(settings["interval_time"])
     serial_data = get_serial_data(settings["interval_time"], settings["baud_rate"])
     cpu_temperature = get_cpu_temperature()
@@ -104,7 +107,6 @@ if __name__ == '__main__':
     try:
         while True:
             schedule.run_pending()
-            settings = load_settings()
             time.sleep(settings["interval_time"])  # sleep_time could be adjusted to match your timing needs
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
