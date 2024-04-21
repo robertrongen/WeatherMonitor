@@ -19,8 +19,8 @@ def load_settings():
         "cpu_temp_threshold": 65,
         "interval_time": 300,  # seconds
         "sleep_time": 60,  # seconds
-        "temp_hum_url": 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1',
-        "serial_port": '/dev/ttyUSB0',
+        "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
+        "serial_port": "/dev/ttyUSB0",
         "baud_rate": 115200
     }
 
@@ -54,8 +54,8 @@ GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 def control_fan_heater():
     global settings
     settings = load_settings()  # Refresh settings on each call
-    temperature, humidity = get_temperature_humidity(settings["interval_time"])
-    serial_data = get_serial_data(settings["interval_time"], settings["baud_rate"])
+    temperature, humidity = get_temperature_humidity(settings["temp_hum_url"])
+    serial_data = get_serial_data(settings["serial_port"], settings["baud_rate"])
     cpu_temperature = get_cpu_temperature()
     if serial_data:
         print("Processing data:", serial_data)
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     try:
         while True:
             schedule.run_pending()
-            time.sleep(settings["interval_time"])  # sleep_time could be adjusted to match your timing needs
+            time.sleep(settings["sleep_time"])  # sleep_time could be adjusted to match your timing needs
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
     finally:
