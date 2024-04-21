@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+</head>
+<body>
+    <h1>Data Dashboard</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Temperature</th>
+                <th>Humidity</th>
+                <th>Dew Point</th>
+                <th>Fan Status</th>
+                <th>Heater Status</th>
+                <th>CPU Temperature</th>
+                <th>Raining</th>
+                <th>Light</th>
+                <th>Sky Temperature</th>
+                <th>Ambient Temperature</th>
+                <th>SQM IR</th>
+                <th>SQM Full</th>
+                <th>SQM Visible</th>
+                <th>SQM Lux</th>
+                <th>Cloud Coverage</th>
+                <th>Cloud Coverage Indicator</th>
+                <th>Brightness</th>
+                <th>Bortle</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>
+                <td>{{ row['timestamp'] }}</td>
+                <td>{{ row['temperature'] }} °C</td>
+                <td>{{ row['humidity'] }} %</td>
+                <td>{{ row['dew_point'] }} °C</td>
+                <td>{{ row['fan_status'] }}</td>
+                <td>{{ row['heater_status'] }}</td>
+                <td>{{ row['cpu_temperature'] }} °C</td>
+                <td>{{ row['raining'] }}</td>
+                <td>{{ row['light'] }}</td>
+                <td>{{ row['sky_temperature'] }} °C</td>
+                <td>{{ row['ambient_temperature'] }} °C</td>
+                <td>{{ row['sqm_ir'] }}</td>
+                <td>{{ row['sqm_full'] }}</td>
+                <td>{{ row['sqm_visible'] }}</td>
+                <td>{{ row['sqm_lux'] }}</td>
+                <td>{{ row['cloud_coverage'] }}%</td>
+                <td>{{ row['cloud_coverage_indicator'] }}</td>
+                <td>{{ row['brightness'] }}</td>
+                <td>{{ row['bortle'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        // Assuming you pass 'data' as an array of objects from Flask to this template
+        var app = new Vue({
+            el: '#app',
+            data: {
+                rows: {{ data|tojson }}
+            }
+        });
+    </script>
+</body>
+</html>

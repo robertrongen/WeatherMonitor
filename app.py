@@ -14,10 +14,13 @@ def index():
     conn = get_db_connection()
     try:
         rows = conn.execute('SELECT * FROM sky_data ORDER BY timestamp DESC').fetchall()
-        timestamps = [row['timestamp'] for row in rows]
+        # Convert rows to list of dicts to ensure JSON serializability
+        rows_list = [dict(row) for row in rows]
+        timestamps = [row['timestamp'] for row in rows_list]  # Extracting timestamps as normal
     finally:
         conn.close()
-    return render_template('index.html', data=rows, timestamps=json.dumps(timestamps))
+
+    return render_template('index.html', data=rows_list, timestamps=json.dumps(timestamps))
 
 @app.route('/test')
 def index_test():
