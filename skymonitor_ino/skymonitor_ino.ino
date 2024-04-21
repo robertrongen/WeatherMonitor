@@ -38,23 +38,38 @@ void setup() {
 }
 
 void loop() {
-  lightSensor = myLux.lightStrengthLux();
-  Serial.print("LightSensor,");
-  Serial.println(lightSensor);
+  unsigned long currentMillis = millis();  // Get the current time
+  static unsigned long previousMillis = 0; // Stores the last time the sensors were read
+  static unsigned long delayDuration = 5000; // Initial delay duration of 5000ms or 5 seconds
+  const unsigned long hourMillis = 3600000; // Number of milliseconds in an hour
 
-  boolean isRainingDigital = digitalRead(sensorPinDigital);
-  Serial.print("isRainingDigital,");
-  // Serial.println(isRainingDigital);
-  if (isRainingDigital == 0) {
-    raining = "Yes";
-  } else {
-    raining = "No";
+  // Update the delay duration after the first hour
+  if (currentMillis >= hourMillis) {
+    delayDuration = 60000; // Change to 60000ms or 60 seconds after the first hour
   }
-  Serial.print("Raining,");
-  Serial.println(raining);
 
-  delay(5000);
+  // Check if it's time to read the sensors again
+  if (currentMillis - previousMillis >= delayDuration) {
+    previousMillis = currentMillis; // Update the last read time
+
+    // Sensor reading and serial output
+    lightSensor = myLux.lightStrengthLux();
+    Serial.print("LightSensor,");
+    Serial.println(lightSensor);
+
+    boolean isRainingDigital = digitalRead(sensorPinDigital);
+    if (isRainingDigital == 0) {
+      raining = "Yes";
+    } else {
+      raining = "No";
+    }
+    Serial.print("Raining,");
+    Serial.println(raining);
+  }
+
+  // Other code that needs to run without delay can go here
 }
+
 
 void scanDevices() {
     byte error, address;

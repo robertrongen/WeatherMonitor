@@ -90,40 +90,52 @@ void setup() {
   delay(1000);
 }
 
-void loop() {
-  digitalWrite(LED_BUILTIN, HIGH);
+// Constants for delay intervals
+const unsigned long initialDelay = 9000; // 9 seconds initially
+const unsigned long prolongedDelay = 60000; // 60 seconds after first hour
+unsigned long delayDuration = initialDelay; // Start with initial delay
+unsigned long previousMillis = 0; // to store the last update time
 
+// Track the one hour change
+unsigned long startTime = millis(); // Start time to calculate the first hour
+const unsigned long oneHourMillis = 3600000; // milliseconds in one hour
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  // Change delay after first hour
+  if (currentMillis - startTime >= oneHourMillis && delayDuration != prolongedDelay) {
+    delayDuration = prolongedDelay; // change to longer delay after one hour
+  }
+
+  // Periodic actions every 'delayDuration' milliseconds
+  if (currentMillis - previousMillis >= delayDuration) {
+    previousMillis = currentMillis; // Update the last action time
+
+    digitalWrite(LED_BUILTIN, HIGH); // Turn on LED
+    delay(1000); // LED on for 1 second
+    digitalWrite(LED_BUILTIN, LOW); // Turn off LED
+
+    // Collect and update sensor data
+    fetchSkyTemp();
+    advancedRead();
+    fetchNanoData();
+    generateSensorJson();
+    memoryMonitor(); // Check memory status
+  }
+
+  // Continuous actions handled outside the timed block
   maintainWifi();
   server.handleClient();
   MDNS.update();
-
-  // Collect and update sensor data
-  fetchSkyTemp();
-  advancedRead();
-  fetchNanoData();
-  generateSensorJson();
-
-  delay(9000);
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(1000);
-  memoryMonitor();
 }
 
 void memoryMonitor() {
-    // Print free heap memory every minute
-  static unsigned long lastPrint = 0;
-  if (millis() - lastPrint > 60000) {
-    customSerialPrint("Free heap: ");
-    customSerialPrintln(String(ESP.getFreeHeap()));
-    lastPrint = millis();
-  }
-  // Print stack space left every minute
+  customSerialPrint("Free heap: ");
+  customSerialPrintln(String(ESP.getFreeHeap()));
   static unsigned long lastStackPrint = 0;
-  if (millis() - lastStackPrint > 60000) {
-    customSerialPrint("Stack space left: ");
-    customSerialPrintln(String(cont_get_free_stack(g_pcont)));
-    lastStackPrint = millis();
-  }
+  customSerialPrint("Stack space left: ");
+  customSerialPrintln(String(cont_get_free_stack(g_pcont)));
 }
 
 void handleRoot() {
@@ -259,9 +271,13 @@ void fetchNanoData() {
     while (Serial.available()) {
         char c = Serial.read();
         if (c == '\n') {
+            // Remove any trailing carriage return before processing
+            if (nanoDataBuffer.endsWith("\r")) {
+                nanoDataBuffer.remove(nanoDataBuffer.length() - 1);
+            }
             processSerialData(nanoDataBuffer);
             nanoDataBuffer = "";
-        } else {
+        } else if (c != '\r') {  // Ignore carriage return characters
             nanoDataBuffer += c;
         }
     }
@@ -280,8 +296,6 @@ void processSerialData(String data) {
     }
   } else if (sensorID == "Raining") {
     raining = sensorValue;
-    Serial.print("SensorValue Raining Received: ");
-    Serial.println(raining);
   }
   printNanoData(sensorID, sensorValue);
 }
