@@ -1,18 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Dashboard test</title>
+    <meta charset="UTF-8">
+    <title>Test Dashboard</title>
 </head>
 <body>
-    <h1>Data Dashboard</h1>
-    <div id="data-display">
-        <script>
-            var timestamps = {{ timestamps|safe }};
-            var cloudCoverageIndicators = {{ cloud_coverage_indicators|safe }};
-
-            console.log('Timestamps:', timestamps);
-            console.log('Cloud Coverage Indicators:', cloudCoverageIndicators);
-        </script>
-    </div>
+    <h1>Data Dashboard - Test</h1>
+    <script>
+        // Ensure the data passed to JavaScript is properly parsed
+        var timestamps = {{ timestamps|safe }};
+        console.log(timestamps);
+    </script>
 </body>
 </html>
