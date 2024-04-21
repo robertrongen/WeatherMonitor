@@ -15,7 +15,7 @@ email_password = os.getenv('EMAIL_PASSWORD')
 slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
 
 def setup_email_logging(logger):
-    mail_handler = SMTPHandler(
+    mail_handler = logging.handlers.SMTPHandler(
         mailhost=(email_host, email_port),
         fromaddr=f"{email_username}",
         toaddrs=["rongen.robert@gmail.com"],
