@@ -72,6 +72,8 @@ def control_fan_heater():
             "cloud_coverage_indicator": cloud_coverage_indicator,
             "brightness": brightness,
             "bortle": bortle
+            "sky_temperature": sky_temperature,  # Ensure the rounded value is used
+            "sqm_lux": sqm_lux  # Ensure the rounded value is used
         }
         logger.debug("Storing data: %s", data)
         store_sky_data(data, conn)
