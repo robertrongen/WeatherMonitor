@@ -1,7 +1,7 @@
 {
     "ambient_temp_threshold": 20,
-    "cpu_temp_threshold": 65,
-    "interval_time": 10.0,
+    "cpu_temp_threshold": 70,
+    "interval_time": 60.0,
     "sleep_time": 1,
     "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
     "serial_port": "/dev/ttyUSB0",
