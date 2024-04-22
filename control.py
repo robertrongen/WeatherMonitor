@@ -18,7 +18,7 @@ settings = load_settings()  # Initial load of settings
 # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
 Relay_Ch1 = 26  # Fan
 Relay_Ch2 = 20  # Dew Heater
-# Relay_Ch3 = 21  # Available for future use
+Relay_Ch3 = 21  # Available for future use
 GPIO.setwarnings(False)     # Set GPIO warnings to false (optional, to avoid nuisance warnings)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
