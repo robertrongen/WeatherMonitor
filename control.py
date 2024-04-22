@@ -31,6 +31,9 @@ GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 def control_fan_heater():
     global settings
     settings = load_settings()  # Refresh settings on each call
+    if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
+        logger.error(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
+        temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
     temperature, humidity = get_temperature_humidity(settings["temp_hum_url"])
     serial_data = get_serial_data(settings["serial_port"], settings["baud_rate"])
     cpu_temperature = get_cpu_temperature()

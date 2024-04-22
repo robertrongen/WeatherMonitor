@@ -36,20 +36,25 @@ def get_temperature_humidity(url):
     Fetch temperature and humidity from an external API or sensor.
     Returns a tuple (temperature, humidity).
     """
+    if not url.startswith('http'):
+        logger.error(f"Invalid URL passed to get_temperature_humidity: {url}")
+        return None, None
+
     try:
         response = requests.get(url)
+        response.raise_for_status()  # Will raise an exception for 4XX/5XX responses
         data = response.json()
         if data:
-            # Access the first item in the list, then extract temperature and humidity
-            first_record = data[0]
-            temperature = first_record['temperature']
-            humidity = first_record['humidity']
+            temperature = data[0]['temperature']
+            humidity = data[0]['humidity']
             return temperature, humidity
         else:
-            logger.warning("Received empty data")
+            logger.warning("Received empty data from API")
             return None, None
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Network-related error when fetching temperature and humidity: {e}")
+        return None, None
     except Exception as e:
-        print(f"Failed to fetch temperature and humidity: {e}")
         logger.warning(f"Failed to fetch temperature and humidity: {e}")
         return None, None
 
