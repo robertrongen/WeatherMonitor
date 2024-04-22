@@ -2,7 +2,6 @@
 import requests
 import serial
 import json
-import logging
 from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')
 
@@ -18,15 +17,15 @@ def get_serial_data(port, rate):
         while True:
             line = ser.readline().decode('utf-8').strip()
             if line:
-                logging.debug(f"Received line: {line}")
+                logger.debug(f"Received line: {line}")
                 try:
                     data = json.loads(line)
-                    logging.info(f"Received valid JSON data: {data}")
+                    logger.info(f"Received valid JSON data: {data}")
                     return data
                 except json.JSONDecodeError:
-                    logging.debug("Failed to decode JSON, skipping line.")
+                    logger.debug("Failed to decode JSON, skipping line.")
     except Exception as e:
-        logging.error(f"Error reading from serial port: {e}")
+        logger.error(f"Error reading from serial port: {e}")
     finally:
         ser.close()
     return None
