@@ -47,7 +47,7 @@ def get_temperature_humidity(url):
         if data:
             temperature = data[0]['temperature']
             humidity = data[0]['humidity']
-            return temperature, humidity
+            return round(temperature, 2), round(humidity, 2)
         else:
             logger.warning("Received empty data from API")
             return None, None
@@ -66,7 +66,7 @@ def get_cpu_temperature():
     try:
         with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
             temp = f.read()
-        return float(temp) / 1000  # Convert millidegree Celsius to degree Celsius
+        return round(float(temp) / 1000, 2)  # Convert millidegree Celsius to degree Celsius
     except Exception as e:
         print(f"Failed to fetch CPU temperature: {e}")
         return None
