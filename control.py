@@ -50,8 +50,8 @@ def control_fan_heater():
 
         # Get other data, calculate values
         ambient_temperature = round(temperature, 2)
-        sky_temperature = round(float(serial_data.get('sky_temperature')), 2)
-        sqm_lux = round(float(serial_data.get('sqm_lux')), 2)
+        sky_temperature = round(float(serial_data.get('sky_temperature')), 2) if serial_data.get('sky_temperature') else None
+        sqm_lux = round(float(serial_data.get('sqm_lux')), 2) if serial_data.get('sqm_lux') else None
         cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(ambient_temperature, sky_temperature, sqm_lux)
         cloud_coverage = round(cloud_coverage, 2) if cloud_coverage is not None else None
         cloud_coverage_indicator = round(cloud_coverage_indicator, 2) if cloud_coverage_indicator is not None else None
