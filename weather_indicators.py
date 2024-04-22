@@ -14,7 +14,7 @@ def calculate_indicators(ambient_temperature, sky_temperature, sqm_lux):
         print("Error: Missing temperature data.")
         return None, None, None, None
 
-    if sqm_lux is None or sqm_lux == "" or sqm_lux == 0:
+    if sqm_lux is None or sqm_lux <= 0:  # Check for sqm_lux to be positive
         print("Error: Invalid sqm_lux data.")
         return None, None, None, None
 
