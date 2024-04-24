@@ -20,6 +20,13 @@ def utc_to_cet(utc_str):
     cet_dt = utc_zone.localize(utc_dt).astimezone(cet_zone)
     return cet_dt.strftime('%Y-%m-%d %H:%M:%S')
 
+def read_log_file(path):
+    try:
+        with open(path, 'r') as file:
+            return file.readlines()  # Return the lines in the file
+    except IOError:
+        return ["Unable to read file, please check the file path and permissions."]
+
 @app.route('/')
 def index():
     conn = get_db_connection()
@@ -72,6 +79,22 @@ def settings_page():
     else:
         return render_template('settings.html', settings=settings)
 
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html'), logwatch_report_url="/etc/logwatch/report/logwatch.html")
+
+@app.route('/data')
+def serial_data():
+    conn = sqlite3.connect('sky_data.db')
+    c = conn.cursor()
+    c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 1440')  # Last 24 hours if data is logged every minute
+    data = c.fetchall()
+    conn.close()
+    return jsonify(data)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')
+
 @app.route('/test')
 def index_test():
     try:
@@ -85,6 +108,19 @@ def index_test():
         timestamps = []
         print(f"Error fetching data: {e}")
     return render_template('index_test.html', data=rows, timestamps=json.dumps(timestamps))
+
+@app.route('/logs/<string:log_name>')
+def show_logs(log_name):
+    log_path = {
+        'syslog': '/var/log/syslog',
+        'messages': '/var/log/messages'
+    }.get(log_name)
+
+    if log_path and os.access(log_path, os.R_OK):
+        logs = read_log_file(log_path)
+        return render_template('logs.html', logs=logs, log_name=log_name)
+    else:
+        abort(403)  # Abort if the log path is not recognized or not readable
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

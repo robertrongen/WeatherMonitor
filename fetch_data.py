@@ -2,6 +2,7 @@
 import requests
 import serial
 import json
+import psutil
 from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')
 
@@ -68,6 +69,41 @@ def get_cpu_temperature():
         return round(float(temp) / 1000, 2)  # Convert millidegree Celsius to degree Celsius
     except Exception as e:
         print(f"Failed to fetch CPU temperature: {e}")
+        return None
+
+def get_cpu_usage():
+    """
+    Fetch the current CPU usage of the system.
+    Returns the CPU usage as a percentage.
+    """
+    try:
+        return psutil.cpu_percent(interval=1)
+    except Exception as e:
+        print(f"Failed to fetch CPU usage: {e}")
+        return None
+
+def get_memory_usage():
+    """
+    Fetch the current memory usage of the system.
+    Returns memory usage as a percentage of total available memory.
+    """
+    try:
+        memory = psutil.virtual_memory()
+        return memory.percent
+    except Exception as e:
+        print(f"Failed to fetch memory usage: {e}")
+        return None
+
+def get_disk_usage():
+    """
+    Fetch the disk usage for the root directory.
+    Returns the disk usage as a percentage of total capacity.
+    """
+    try:
+        partition = psutil.disk_usage('/')
+        return partition.percent
+    except Exception as e:
+        print(f"Failed to fetch disk usage: {e}")
         return None
 
 if __name__ == "__main__":
