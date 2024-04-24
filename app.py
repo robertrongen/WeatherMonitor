@@ -86,14 +86,31 @@ def dashboard():
 @app.route('/data')
 def serial_data():
     conn = sqlite3.connect('sky_data.db')
+
     c = conn.cursor()
-    c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 1440')  # Last 24 hours if data is logged every minute
+    # Calculate the timestamp for 24 hours ago
+    time_threshold = datetime.now() - timedelta(days=1)
+    # Format it in a way that's compatible with your database's timestamp format
+    formatted_time_threshold = time_threshold.strftime('%Y-%m-%d %H:%M:%S')
+    # Execute a query that selects entries newer than 24 hours ago
+    c.execute('SELECT * FROM metrics WHERE timestamp >= ? ORDER BY timestamp DESC', (formatted_time_threshold,))
     data = c.fetchall()
     conn.close()
+
     return jsonify(data)
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+@app.route('/logs/<string:log_name>')
+def show_logs(log_name):
+    log_path = {
+        'syslog': '/var/log/syslog',
+        'messages': '/var/log/messages'
+    }.get(log_name)
+
+    if log_path and os.access(log_path, os.R_OK):
+        logs = read_log_file(log_path)
+        return render_template('logs.html', logs=logs, log_name=log_name)
+    else:
+        abort(403)  # Abort if the log path is not recognized or not readable
 
 @app.route('/test')
 def index_test():
@@ -108,19 +125,6 @@ def index_test():
         timestamps = []
         print(f"Error fetching data: {e}")
     return render_template('index_test.html', data=rows, timestamps=json.dumps(timestamps))
-
-@app.route('/logs/<string:log_name>')
-def show_logs(log_name):
-    log_path = {
-        'syslog': '/var/log/syslog',
-        'messages': '/var/log/messages'
-    }.get(log_name)
-
-    if log_path and os.access(log_path, os.R_OK):
-        logs = read_log_file(log_path)
-        return render_template('logs.html', logs=logs, log_name=log_name)
-    else:
-        abort(403)  # Abort if the log path is not recognized or not readable
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
