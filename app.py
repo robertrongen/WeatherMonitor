@@ -81,7 +81,7 @@ def settings_page():
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html'), logwatch_report_url="/etc/logwatch/report/logwatch.html")
+    return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
 
 @app.route('/data')
 def serial_data():
