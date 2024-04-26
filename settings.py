@@ -5,6 +5,7 @@ def load_settings():
     default_settings = {
         "ambient_temp_threshold": 20,
         "cpu_temp_threshold": 65,
+        "memory_usage_threshold": 65,
         "interval_time": 300,  # seconds
         "sleep_time": 60,  # seconds
         "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",

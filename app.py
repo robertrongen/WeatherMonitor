@@ -54,6 +54,7 @@ def settings_page():
         settings = {
             "ambient_temp_threshold": 20,
             "cpu_temp_threshold": 65,
+            "memory_usage__threshold": 65,
             "interval_time": 0.2,
             "sleep_time": 2,
             "temp_hum_url": 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1',
@@ -65,6 +66,7 @@ def settings_page():
         # Update settings based on form data
         settings['ambient_temp_threshold'] = int(request.form['ambient_temp_threshold'])
         settings['cpu_temp_threshold'] = int(request.form['cpu_temp_threshold'])
+        settings['memory_usage_threshold'] = int(request.form['memory_usage_threshold'])
         settings['interval_time'] = float(request.form['interval_time'])
         settings['sleep_time'] = int(request.form['sleep_time'])
         settings['temp_hum_url'] = request.form['temp_hum_url']

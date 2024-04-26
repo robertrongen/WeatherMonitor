@@ -7,7 +7,7 @@ import schedule
 import sqlite3
 import json
 from settings import load_settings
-from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature
+from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dew_point
 from store_data import store_sky_data  # Import your data storage module
 from app_logging import setup_logger
@@ -34,6 +34,7 @@ def control_fan_heater():
     temperature, humidity = get_temperature_humidity(temp_hum_url)
     serial_data = get_serial_data(settings["serial_port"], settings["baud_rate"])
     cpu_temperature = get_cpu_temperature()
+    memory_usage = get_memory_usage()
     if serial_data:
         print("Processing data:", serial_data)
     else:
@@ -43,7 +44,12 @@ def control_fan_heater():
         # Control fan and heater
         dew_point = round(calculate_dew_point(temperature, humidity), 2)
         dew_point_threshold = round(temperature - 2, 2)
-        fan_status = "ON" if (temperature > settings["ambient_temp_threshold"] or temperature <= dew_point + 1 or cpu_temperature > settings["cpu_temp_threshold"]) else "OFF"
+        fan_status = "ON" if (
+            temperature > settings["ambient_temp_threshold"] 
+            or temperature <= dew_point + 1 
+            or cpu_temperature > settings["cpu_temp_threshold"]
+            or memory_usage > settings["memory_usage_threshold"]
+        ) else "OFF"
         heater_status = "ON" if temperature <= dew_point_threshold else "OFF"
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
