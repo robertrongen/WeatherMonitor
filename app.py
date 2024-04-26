@@ -55,7 +55,7 @@ def settings_page():
             "ambient_temp_threshold": 20,
             "dewpoint_threshold": 2,
             "cpu_temp_threshold": 65,
-            "memory_usage__threshold": 65,
+            "memory_usage_threshold": 65,
             "interval_time": 0.2,
             "sleep_time": 2,
             "temp_hum_url": 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1',
