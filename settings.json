@@ -1,6 +1,6 @@
 {
     "ambient_temp_threshold": 20,
-    "dewpoint_threshold": 2,
+    "dewpoint_threshold": 5,
     "cpu_temp_threshold": 70,
     "memory_usage_threshold": 65,
     "interval_time": 60.0,
