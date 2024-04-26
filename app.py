@@ -53,6 +53,7 @@ def settings_page():
     except FileNotFoundError:
         settings = {
             "ambient_temp_threshold": 20,
+            "dewpoint_threshold": 2,
             "cpu_temp_threshold": 65,
             "memory_usage__threshold": 65,
             "interval_time": 0.2,
@@ -65,6 +66,7 @@ def settings_page():
     if request.method == 'POST':
         # Update settings based on form data
         settings['ambient_temp_threshold'] = int(request.form['ambient_temp_threshold'])
+        settings['dewpoint_threshold'] = int(request.form['dewpoint_threshold'])
         settings['cpu_temp_threshold'] = int(request.form['cpu_temp_threshold'])
         settings['memory_usage_threshold'] = int(request.form['memory_usage_threshold'])
         settings['interval_time'] = float(request.form['interval_time'])
