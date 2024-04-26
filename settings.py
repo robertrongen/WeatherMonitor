@@ -4,6 +4,7 @@ import json
 def load_settings():
     default_settings = {
         "ambient_temp_threshold": 20,
+        "dewpoint_threshold": 2,
         "cpu_temp_threshold": 65,
         "memory_usage_threshold": 65,
         "interval_time": 300,  # seconds
