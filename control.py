@@ -50,7 +50,7 @@ def control_fan_heater():
             or cpu_temperature > settings["cpu_temp_threshold"]
             or memory_usage > settings["memory_usage_threshold"]
         ) else "OFF"
-        heater_status = "ON" if temperature <= (dew_point + settings["dewpoint_threshold]) else "OFF"
+        heater_status = "ON" if temperature <= (dew_point + settings["dewpoint_threshold"]) else "OFF"
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
 
