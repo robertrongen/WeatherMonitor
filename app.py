@@ -5,7 +5,7 @@ import json
 import os
 import pytz
 from datetime import datetime, timedelta
-from settings load load_settings
+from settings import load_settings
 
 app = Flask(__name__)
 
