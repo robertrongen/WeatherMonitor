@@ -46,35 +46,24 @@ def index():
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings_page():
-    # Load initial settings from a JSON file or set default values
-    try:
-        with open('settings.json', 'r') as f:
-            settings = json.load(f)
-    except FileNotFoundError:
-        settings = {
-            "ambient_temp_threshold": 20,
-            "dewpoint_threshold": 2,
-            "cpu_temp_threshold": 65,
-            "memory_usage_threshold": 65,
-            "interval_time": 0.2,
-            "sleep_time": 2,
-            "temp_hum_url": 'https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1',
-            "serial_port": '/dev/ttyUSB0',
-            "baud_rate": 115200
-        }
+    settings = load_settings()
 
     if request.method == 'POST':
         # Update settings based on form data
-        settings['ambient_temp_threshold'] = int(request.form['ambient_temp_threshold'])
-        settings['dewpoint_threshold'] = int(request.form['dewpoint_threshold'])
-        settings['cpu_temp_threshold'] = int(request.form['cpu_temp_threshold'])
-        settings['memory_usage_threshold'] = int(request.form['memory_usage_threshold'])
-        settings['interval_time'] = float(request.form['interval_time'])
-        settings['sleep_time'] = int(request.form['sleep_time'])
-        settings['temp_hum_url'] = request.form['temp_hum_url']
-        settings['serial_port'] = request.form['serial_port']
-        settings['baud_rate'] = int(request.form['baud_rate'])
-        
+        # For integer values
+        settings['ambient_temp_threshold'] = int(request.form.get('ambient_temp_threshold', settings['ambient_temp_threshold']))
+        settings['dewpoint_threshold'] = int(request.form.get('dewpoint_threshold', settings['dewpoint_threshold']))
+        settings['cpu_temp_threshold'] = int(request.form.get('cpu_temp_threshold', settings['cpu_temp_threshold']))
+        settings['memory_usage_threshold'] = int(request.form.get('memory_usage_threshold', settings['memory_usage_threshold']))
+        settings['sleep_time'] = int(request.form.get('sleep_time', settings['sleep_time']))
+        settings['baud_rate'] = int(request.form.get('baud_rate', settings['baud_rate']))
+
+        # For floating point value
+        settings['interval_time'] = float(request.form.get('interval_time', settings['interval_time']))
+
+        # For string values (no type conversion needed)
+        settings['temp_hum_url'] = request.form.get('temp_hum_url', settings['temp_hum_url'])
+        settings['serial_port'] = request.form.get('serial_port', settings['serial_port'])
         # Save updated settings to a file
         with open('settings.json', 'w') as f:
             json.dump(settings, f, indent=4)
