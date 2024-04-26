@@ -46,7 +46,7 @@ def control_fan_heater():
         dew_point_threshold = round(temperature - 2, 2)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
-            or temperature <= dew_point + settings["dewpoint_threshold]
+            or temperature <= dew_point + settings["dewpoint_threshold"]
             or cpu_temperature > settings["cpu_temp_threshold"]
             or memory_usage > settings["memory_usage_threshold"]
         ) else "OFF"
