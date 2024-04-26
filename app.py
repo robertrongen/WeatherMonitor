@@ -1,13 +1,20 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask_session import Session
 import sqlite3
 import json
 import os
 import pytz
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from settings import load_settings
 
 app = Flask(__name__)
+
+load_dotenv()
+app.secret_key = os.getenv('SESSION_KEY')
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 
 def get_db_connection():
     conn = sqlite3.connect('sky_data.db')
@@ -65,14 +72,16 @@ def settings_page():
         # For string values (no type conversion needed)
         settings['temp_hum_url'] = request.form.get('temp_hum_url', settings['temp_hum_url'])
         settings['serial_port'] = request.form.get('serial_port', settings['serial_port'])
+
         # Save updated settings to a file
         with open('settings.json', 'w') as f:
             json.dump(settings, f, indent=4)
 
+        flash('Settings have been updated successfully!', 'success')  # Flash a success message
         return redirect(url_for('settings_page'))
     else:
         return render_template('settings.html', settings=settings)
-
+        
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')

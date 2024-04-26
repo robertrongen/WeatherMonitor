@@ -20,6 +20,15 @@
 <body>
     <div class="container">
         <h1 class="mb-3">Update Settings</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <form action="{{ url_for('settings_page') }}" method="post">
             <div class="row mb-3">
                 <div class="col-sm-4">
@@ -96,5 +105,47 @@
             <button type="submit" class="btn btn-light">Update Settings</button>
         </form>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const settingsForm = document.querySelector('form');
+            
+            settingsForm.addEventListener('submit', function (event) {
+                let isValid = true;
+        
+                // Validate Ambient Temperature Threshold
+                const ambientTemp = document.querySelector('input[name="ambient_temp_threshold"]');
+                if (ambientTemp.value === '' || isNaN(ambientTemp.value) || ambientTemp.value < -50 || ambientTemp.value > 50) {
+                    alert('Ambient Temperature Threshold must be a number between -50 and 50.');
+                    isValid = false;
+                }
+        
+                // Validate Dewpoint Threshold
+                const dewpointTemp = document.querySelector('input[name="dewpoint_threshold"]');
+                if (dewpointTemp.value === '' || isNaN(dewpointTemp.value) || dewpointTemp.value < -50 || dewpointTemp.value > 50) {
+                    alert('Dewpoint Threshold must be a number between -50 and 50.');
+                    isValid = false;
+                }
+        
+                // Validate CPU Temperature Threshold
+                const cpuTemp = document.querySelector('input[name="cpu_temp_threshold"]');
+                if (cpuTemp.value === '' || isNaN(cpuTemp.value) || cpuTemp.value < 0 || cpuTemp.value > 100) {
+                    alert('CPU Temperature Threshold must be a number between 0 and 100.');
+                    isValid = false;
+                }
+        
+                // Validate Memory Usage Threshold
+                const memoryUsage = document.querySelector('input[name="memory_usage_threshold"]');
+                if (memoryUsage.value === '' || isNaN(memoryUsage.value) || memoryUsage.value < 0 || memoryUsage.value > 100) {
+                    alert('Memory Usage Threshold must be a number between 0 and 100.');
+                    isValid = false;
+                }
+        
+                // Prevent form submission if validation fails
+                if (!isValid) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
 </body>
 </html>
