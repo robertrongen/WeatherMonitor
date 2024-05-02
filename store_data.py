@@ -18,7 +18,8 @@ def setup_database(conn=None):
             timestamp DATETIME PRIMARY KEY,
             temperature REAL,
             humidity REAL,
-            dew_point REAL,
+            dewPoint REAL,
+            heatIndex REAL,
             fan_status TEXT,
             heater_status TEXT,
             cpu_temperature REAL,
@@ -49,7 +50,8 @@ def store_sky_data(data, conn):
                 timestamp, 
                 temperature, 
                 humidity, 
-                dew_point, 
+                dewPoint, 
+                heatIndex, 
                 fan_status, 
                 heater_status,
                 cpu_temperature,
@@ -58,6 +60,7 @@ def store_sky_data(data, conn):
                 sky_temperature, 
                 ambient_temperature, 
                 sqm_ir, 
+                sqm_full, 
                 sqm_visible, 
                 sqm_lux, 
                 cloud_coverage, 
@@ -65,11 +68,12 @@ def store_sky_data(data, conn):
                 brightness, 
                 bortle
             )
-            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data['temperature'],
             data['humidity'],
-            data['dew_point'],
+            data['dewPoint'],
+            data['heatIndex'],
             data['fan_status'],
             data['heater_status'],
             data['cpu_temperature'],
@@ -78,6 +82,7 @@ def store_sky_data(data, conn):
             data['sky_temperature'],
             data['ambient_temperature'],
             data['sqm_ir'],
+            data['sqm_full'],
             data['sqm_visible'],
             data['sqm_lux'],
             data['cloud_coverage'],

@@ -1,3 +1,4 @@
 .env
 wifi_ino/secrets.h
 settings.json
+venv/*

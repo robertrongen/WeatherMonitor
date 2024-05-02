@@ -8,7 +8,8 @@ import sqlite3
 import json
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
-from weather_indicators import calculate_indicators, calculate_dew_point
+from weather_indicators import calculate_indicators, calculate_dewPoint
+from meteocalc import heat_index, dew_point
 from store_data import store_sky_data  # Import your data storage module
 from app_logging import setup_logger
 
@@ -42,15 +43,18 @@ def control_fan_heater():
 
     if temperature and humidity and serial_data:
         # Control fan and heater
-        dew_point = round(calculate_dew_point(temperature, humidity), 2)
-        dew_point_threshold = round(temperature - 2, 2)
+        # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
+        dewPoint = round(dew_point(temperature, humidity).c, 2)
+        heatIndex = round(heat_index(temperature, humidity).c, 2)
+
+        dewPoint_threshold = round(temperature - 2, 2)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
-            or temperature <= dew_point + settings["dewpoint_threshold"]
+            or temperature <= dewPoint + settings["dewpoint_threshold"]
             or cpu_temperature > settings["cpu_temp_threshold"]
             or memory_usage > settings["memory_usage_threshold"]
         ) else "OFF"
-        heater_status = "ON" if temperature <= (dew_point + settings["dewpoint_threshold"]) else "OFF"
+        heater_status = "ON" if temperature <= (dewPoint + settings["dewpoint_threshold"]) else "OFF"
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
 
@@ -69,7 +73,8 @@ def control_fan_heater():
         data = {
             "temperature": temperature,
             "humidity": humidity,
-            "dew_point": dew_point,
+            "dewPoint": dewPoint,
+            "heatIndex": heatIndex,
             "fan_status": fan_status,
             "heater_status": heater_status,
             "cpu_temperature": cpu_temperature,
