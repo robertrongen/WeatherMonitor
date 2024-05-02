@@ -73,8 +73,8 @@ def control_fan_heater():
         data = {
             "temperature": temperature,
             "humidity": humidity,
-            "dewPoint": dewPoint,
-            "heatIndex": heatIndex,
+            "dew_point": dewPoint,
+            "heat_index": heatIndex,
             "fan_status": fan_status,
             "heater_status": heater_status,
             "cpu_temperature": cpu_temperature,

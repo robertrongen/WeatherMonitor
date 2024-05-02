@@ -18,8 +18,8 @@ class TestDatabaseIntegration(unittest.TestCase):
         sample_data = {
             'temperature': 20.5,
             'humidity': 50,
-            'dewPoint': 10.0,
-            'heatIndex': 10.0,
+            'dew_point': 10.0,
+            'heat_index': 10.0,
             'fan_status': 'ON',
             'heater_status': 'OFF',
             'cpu_temperature': 55,
@@ -41,11 +41,11 @@ class TestDatabaseIntegration(unittest.TestCase):
         store_sky_data(sample_data, self.connection)
 
         # Query the database to verify the data
-        self.cursor.execute("SELECT temperature, humidity, dewPoint, fan_status, heater_status FROM sky_data")
+        self.cursor.execute("SELECT temperature, humidity, dew_point, fan_status, heater_status FROM sky_data")
         results = self.cursor.fetchone()
 
         # Check if the stored data matches the input data
-        expected = (sample_data['temperature'], sample_data['humidity'], sample_data['dewPoint'],
+        expected = (sample_data['temperature'], sample_data['humidity'], sample_data['dew_point'],
                     sample_data['fan_status'], sample_data['heater_status'])
         self.assertEqual(results, expected)
 
