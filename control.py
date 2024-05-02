@@ -8,7 +8,7 @@ import sqlite3
 import json
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
-from weather_indicators import calculate_indicators, calculate_dewPoint
+from weather_indicators import calculate_indicators
 from meteocalc import heat_index, dew_point
 from store_data import store_sky_data  # Import your data storage module
 from app_logging import setup_logger
