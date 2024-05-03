@@ -9,7 +9,7 @@ import json
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators
-from meteocalc import heat_index, dew_point
+from meteocalc import heat_index, dew_point, Temp
 from store_data import store_sky_data  # Import your data storage module
 from app_logging import setup_logger
 
@@ -44,9 +44,11 @@ def control_fan_heater():
     if temperature and humidity and serial_data:
         # Control fan and heater
         # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
-        dewPoint = round(dew_point(temperature, humidity).c, 1)
-        heatIndex = round(heat_index(temperature, humidity).c, 1)
-
+        t=Temp(temperature, 'c')
+        dewPoint = round(dew_point(temperature=t, humidity).c, 1)
+        print("dew_point: ", dewPoint)
+        heatIndex = round(heat_index(temperature=type, humidity).c, 1)
+        print("heat_index: ", heatIndex)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
             or temperature <= dewPoint + settings["dewpoint_threshold"]
