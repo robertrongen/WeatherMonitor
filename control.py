@@ -44,8 +44,8 @@ def control_fan_heater():
     if temperature and humidity and serial_data:
         # Control fan and heater
         # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
-        t=Temp(temperature, 'c')
-        dewPoint = round(dew_point(temperature=t, humidity).c, 1)
+        temp=Temp(temperature, 'c')
+        dewPoint = round(dew_point(temp, humidity).c, 1)
         print("dew_point: ", dewPoint)
         heatIndex = round(heat_index(temperature=type, humidity).c, 1)
         print("heat_index: ", heatIndex)
