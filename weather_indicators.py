@@ -29,10 +29,10 @@ def calculate_indicators(ambient_temperature, sky_temperature, sqm_lux):
 
     return cloud_coverage, cloud_coverage_indicator, brightness, bortle
 
-# def calculate_dewPoint(T, RH):
-#     b = 17.62
-#     c = 243.12
-#     gamma = (b * T / (c + T)) + log(RH / 100.0)
-#     dewPoint = (c * gamma) / (b - gamma)
-#     return dewPoint
+def calculate_dewPoint(T, RH):
+    b = 17.62
+    c = 243.12
+    gamma = (b * T / (c + T)) + log(RH / 100.0)
+    _dewPoint = (c * gamma) / (b - gamma)
+    return _dewPoint
 

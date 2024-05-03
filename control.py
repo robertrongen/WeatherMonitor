@@ -8,9 +8,9 @@ import sqlite3
 import json
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
-from weather_indicators import calculate_indicators
-from meteocalc import heat_index, dew_point, Temp
-from store_data import store_sky_data  # Import your data storage module
+from weather_indicators import calculate_indicators, calculate_dewPoint
+from meteocalc import heat_index, Temp#, dew_point
+from store_data import store_sky_data
 from app_logging import setup_logger
 
 logger = setup_logger('control', 'control.log')
@@ -43,9 +43,9 @@ def control_fan_heater():
 
     if temperature and humidity and serial_data:
         # Control fan and heater
-        # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
+        dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
         temp=Temp(temperature, 'c')
-        dewPoint = round(dew_point(temp, humidity).c, 1)
+        # dewPoint = round(dew_point(temp, humidity).c, 1)
         logger.info("dew_point: ", dewPoint)
         heatIndex = round(heat_index(temp, humidity).c, 1)
         fan_status = "ON" if (
