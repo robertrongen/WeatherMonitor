@@ -21,7 +21,7 @@ conn.commit()
 def get_cpu_temperature():
     with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
         temp = f.read()
-    return round(float(temp) / 1000, 2)
+    return round(float(temp) / 1000, 0)
 
 def log_metrics():
     cpu_temp = get_cpu_temperature()

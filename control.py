@@ -44,10 +44,9 @@ def control_fan_heater():
     if temperature and humidity and serial_data:
         # Control fan and heater
         # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
-        dewPoint = round(dew_point(temperature, humidity).c, 2)
-        heatIndex = round(heat_index(temperature, humidity).c, 2)
+        dewPoint = round(dew_point(temperature, humidity).c, 1)
+        heatIndex = round(heat_index(temperature, humidity).c, 1)
 
-        dewPoint_threshold = round(temperature - 2, 2)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
             or temperature <= dewPoint + settings["dewpoint_threshold"]
@@ -60,13 +59,13 @@ def control_fan_heater():
 
         # Get other data, calculate values
         ambient_temperature = round(temperature, 2)
-        sky_temperature = round(float(serial_data.get('sky_temperature')), 2) if serial_data.get('sky_temperature') else None
+        sky_temperature = round(float(serial_data.get('sky_temperature')), 1) if serial_data.get('sky_temperature') else None
         sqm_lux = round(float(serial_data.get('sqm_lux')), 2) if serial_data.get('sqm_lux') else None
         cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(ambient_temperature, sky_temperature, sqm_lux)
         cloud_coverage = round(cloud_coverage, 2) if cloud_coverage is not None else None
         cloud_coverage_indicator = round(cloud_coverage_indicator, 2) if cloud_coverage_indicator is not None else None
-        brightness = round(brightness, 2) if brightness is not None else None
-        bortle = round(bortle, 2) if bortle is not None else None
+        brightness = round(brightness, 1) if brightness is not None else None
+        bortle = round(bortle, 1) if bortle is not None else None
         
         # store data
         conn = sqlite3.connect('sky_data.db')
