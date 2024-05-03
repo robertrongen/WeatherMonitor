@@ -46,9 +46,8 @@ def control_fan_heater():
         # dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
         temp=Temp(temperature, 'c')
         dewPoint = round(dew_point(temp, humidity).c, 1)
-        print("dew_point: ", dewPoint)
+        logger.info("dew_point: ", dewPoint)
         heatIndex = round(heat_index(temp, humidity).c, 1)
-        print("heat_index: ", heatIndex)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
             or temperature <= dewPoint + settings["dewpoint_threshold"]
