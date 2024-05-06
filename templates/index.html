@@ -25,6 +25,20 @@
                 <li><a href="/dashboard">System Monitor Dashboard</a></li>
             </ul>
         </div>
+        <div>
+            <h1>Control Panel</h1>
+            {% if alert_active %}
+                <p>Alert is currently: Enabled</p>
+                <form action="{{ url_for('disable_alert') }}" method="post">
+                    <button type="submit">Disable Alert</button>
+                </form>
+            {% else %}
+                <p>Alert is currently: Disabled</p>
+                <form action="{{ url_for('enable_alert') }}" method="post">
+                    <button type="submit">Enable Alert</button>
+                </form>
+            {% endif %}
+        </div>
         <table>
             <thead>
                 <tr>

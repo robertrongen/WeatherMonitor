@@ -35,6 +35,20 @@ def read_log_file(path):
     except IOError:
         return ["Unable to read file, please check the file path and permissions."]
 
+# Global variable to store the alert state
+alert_active = False
+
+def enable_alert():
+    global alert_active
+    alert_active = True
+    return redirect(url_for('index'))
+
+@app.route('/disable-alert', methods=['POST'])
+def disable_alert():
+    global alert_active
+    alert_active = False
+    return redirect(url_for('index'))
+
 @app.route('/')
 def index():
     conn = get_db_connection()
@@ -50,7 +64,7 @@ def index():
         conn.close()
 
     # return render_template('index.html', data=rows_list, timestamps=json.dumps(timestamps))
-    return render_template('index.html', data=rows_list)
+    return render_template('index.html', data=rows_list, alert_active=alert_active)
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings_page():
@@ -59,6 +73,7 @@ def settings_page():
     if request.method == 'POST':
         # Update settings based on form data
         # For integer values
+        settings['raining_threshold'] = int(request.form.get('raining_threshold', settings['raining_threshold']))
         settings['ambient_temp_threshold'] = int(request.form.get('ambient_temp_threshold', settings['ambient_temp_threshold']))
         settings['dewpoint_threshold'] = int(request.form.get('dewpoint_threshold', settings['dewpoint_threshold']))
         settings['cpu_temp_threshold'] = int(request.form.get('cpu_temp_threshold', settings['cpu_temp_threshold']))

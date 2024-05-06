@@ -32,6 +32,14 @@
         <form action="{{ url_for('settings_page') }}" method="post">
             <div class="row mb-3">
                 <div class="col-sm-4">
+                    <label for="raining_threshold" class="form-label">Raining Threshold:</label>
+                </div>
+                <div class="col-sm-8">
+                    <input type="number" name="raining_threshold" value="{{ settings['raining_threshold'] }}" class="form-control">
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-sm-4">
                     <label for="ambient_temp_threshold" class="form-label">Ambient Temperature Threshold:</label>
                 </div>
                 <div class="col-sm-8">
@@ -111,6 +119,13 @@
             
             settingsForm.addEventListener('submit', function (event) {
                 let isValid = true;
+        
+                // Validate Raining Threshold
+                const rainingValue = document.querySelector('input[name="raining_threshold"]');
+                if (rainingValue.value === '' || isNaN(rainingValue.value) || rainingValue.value < 50 || rainingValue.value > 500) {
+                    alert('Raining Threshold must be a number between 50 and 500.');
+                    isValid = false;
+                }
         
                 // Validate Ambient Temperature Threshold
                 const ambientTemp = document.querySelector('input[name="ambient_temp_threshold"]');

@@ -3,6 +3,7 @@ import json
 
 def load_settings():
     default_settings = {
+        "raining_threshold": 100,
         "ambient_temp_threshold": 20,
         "dewpoint_threshold": 2,
         "cpu_temp_threshold": 65,
