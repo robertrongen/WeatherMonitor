@@ -20,6 +20,14 @@
         <h1>Data Dashboard</h1>
         <h2>Control Panel</h1>
         <div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        
             {% if alert_active %}
                 <p>Alert is currently: Enabled</p>
                 <form action="{{ url_for('disable_alert') }}" method="post">
@@ -39,6 +47,7 @@
                 <li><a href="/settings">Settings</a></li>
                 <li><a href="/dashboard">System Monitor Dashboard</a></li>
             </ul>
+            <h2>Data</h1>
         </div>
         <table>
             <thead>

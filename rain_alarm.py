@@ -43,6 +43,7 @@ def check_rain_alert():
             logger.info("It's raining: %s", rain)
             message = "Alert: It's raining!!!!"
             send_pushover_notification(user_key, api_token, message)
+            flash('Rain alert sent!', 'info')  # Flash a message
             # Disable alert until re-enabled manually
             alert_active = False
     else:
