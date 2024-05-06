@@ -38,6 +38,7 @@ def read_log_file(path):
 # Global variable to store the alert state
 alert_active = False
 
+@app.route('/enable-alert', methods=['POST'])
 def enable_alert():
     global alert_active
     alert_active = True
