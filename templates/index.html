@@ -18,26 +18,27 @@
 <body>
     <div id="app"> <!-- Ensure Vue controls this part of the DOM -->
         <h1>Data Dashboard</h1>
+        <h2>Control Panel</h1>
         <div>
-            <ul>
-                <li><a href="http://allsky.local/allsky/index.php">Sky Monitor Camera</a></li>
-                <li><a href="/settings">Settings</a></li>
-                <li><a href="/dashboard">System Monitor Dashboard</a></li>
-            </ul>
-        </div>
-        <div>
-            <h1>Control Panel</h1>
             {% if alert_active %}
                 <p>Alert is currently: Enabled</p>
                 <form action="{{ url_for('disable_alert') }}" method="post">
-                    <button type="submit">Disable Alert</button>
+                    <button type="submit" style="background-color: #d32f2f; color: white; border: none; padding: 10px 20px; cursor: pointer;">Disable Alert</button>
                 </form>
             {% else %}
                 <p>Alert is currently: Disabled</p>
                 <form action="{{ url_for('enable_alert') }}" method="post">
-                    <button type="submit">Enable Alert</button>
+                    <button type="submit" style="background-color: #388e3c; color: white; border: none; padding: 10px 20px; cursor: pointer;">Enable Alert</button>
                 </form>
             {% endif %}
+        </div>
+        <div>
+            <h2>Links</h1>
+                <ul>
+                <li><a href="http://allsky.local/allsky/index.php">Sky Monitor Camera</a></li>
+                <li><a href="/settings">Settings</a></li>
+                <li><a href="/dashboard">System Monitor Dashboard</a></li>
+            </ul>
         </div>
         <table>
             <thead>
