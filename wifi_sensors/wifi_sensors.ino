@@ -4,18 +4,11 @@
     Starts IR temp and tsl2591 sensors and gets sensor data
     Gets gets external sensor data
     Publishes sensor data to a local webserver
-    Triggers a IFTTT notication when raining
 */
 
+#include "wifi_sensors.h"
 #include "secrets.h"
-#include <WiFiClient.h>
-#include <Wire.h>
-#include <ESP8266HTTPClient.h>
-#include <ArduinoJson.h>
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
-// Check stack space
-#include "cont.h"
+#include <ctype.h>
 
 // WiFi connect timeout per AP. Increase when connecting takes longer.
 const uint32_t connectTimeoutMs = 5000;
@@ -31,20 +24,11 @@ const char *password4 = STAPSK4;
 String activeWifiSSID = ""; // Initialize to an empty string
 bool wasConnected = false;  // Flag to track if WiFi was previously connected
 
-// SkyMonitor WebServer
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-ESP8266WebServer server(80);
-
-// IR Temp Sensor
-#include <SparkFunMLX90614.h> //Click here to get the library: http://librarymanager/All#Qwiic_IR_Thermometer by SparkFun
+ESP8266WiFiMulti wifiMulti;
 IRTherm therm; // Create an IRTherm object to interact with throughout
 String skyTemp, ambientTemp;
-
-// TSL2591 sensor
-#include <Adafruit_Sensor.h>
-#include "Adafruit_TSL2591.h"
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // pass in a number for the sensor identifier (for your use later)
+
 uint16_t ir, full, Visible;
 float Lux;
 
@@ -52,30 +36,27 @@ float Lux;
 String lightSensor, raining;
 String nanoDataBuffer = "";
 
-// Collect data in JSON file
-DynamicJsonDocument doc(1024);
-
-// Logging to webserver
-#define SERIAL_BUFFER_SIZE 2000
-String serialBuffer = "";
-const int MAX_LOG_ENTRIES = 50;  // Adjust as needed
-String logEntries[MAX_LOG_ENTRIES];
-int logIndex = 0;
+// char *typeName[] = {"Object: ", "Ambient: "};
+// float tempC, tempF, tempK, tempCA, tempFA, tempKA;
+// char type = 'C'; //default temperature type C
+// char *url[] ={"/c", "/f", "/k"};
+ESP8266WebServer server(80);
 
 void setup() {
-  delay(1000);
   Serial.begin(115200);
   while (!Serial);
   customSerialPrintln("Serial of D1Mini connected");
   
+  // Reserve memory for frequently updated strings to avoid fragmentation
+  nanoDataBuffer.reserve(200);
+  skyTemp.reserve(30);
+  ambientTemp.reserve(30);
+
   startWifiMulti();
   startWebserver();
 
   Wire.begin();                 //Joing I2C bus
-  delay(1000);
-  scanDevices();
   therm.begin();                // Start IR temp sensor
-  fetchSkyTemp();
 
   tsl.enable();
   if (tsl.begin()) {
@@ -100,6 +81,8 @@ unsigned long previousMillis = 0; // to store the last update time
 unsigned long startTime = millis(); // Start time to calculate the first hour
 const unsigned long oneHourMillis = 3600000; // milliseconds in one hour
 
+void advancedRead(void);
+
 void loop() {
   unsigned long currentMillis = millis();
 
@@ -120,7 +103,6 @@ void loop() {
     fetchSkyTemp();
     advancedRead();
     fetchNanoData();
-    generateSensorJson();
     memoryMonitor(); // Check memory status
   }
 
@@ -133,7 +115,6 @@ void loop() {
 void memoryMonitor() {
   customSerialPrint("Free heap: ");
   customSerialPrintln(String(ESP.getFreeHeap()));
-  static unsigned long lastStackPrint = 0;
   customSerialPrint("Stack space left: ");
   customSerialPrintln(String(cont_get_free_stack(g_pcont)));
 }
@@ -157,7 +138,18 @@ void handleRoot() {
   html += "<h2>Safety status</h2>";
   html += "<table border='1'>";
   html += "<tr><th>Sensor</th><th>Data</th></tr>"; // Table headers
-  String rainingColor = (raining.indexOf("Yes") != -1) ? "#FF0000" : (raining.indexOf("No") != -1) ? "#008000" : "#808080";
+  String rainingColor = "#808080";
+  // Check if 'raining' is not empty and is numeric
+  if (!raining.isEmpty()) {
+      int rainSensorValue = raining.toInt(); // Convert the string value to an integer
+
+      // Determine the background color based on the sensor value
+      if (rainSensorValue < 100) {
+          rainingColor = "#FF0000"; // Red color for raining
+      } else {
+          rainingColor = "#008000"; // Green color for not raining
+      }
+  }
   html += "<tr><td>Is it raining?</td><td style='background-color: " + rainingColor + ";'>" + raining + "</td></tr>";
   html += "<tr><td>Is it cloudy?</td><td>tbd</td></tr>";
   html += "<tr><td>Is it dark?</td><td>tbd</td></tr>";
@@ -166,6 +158,7 @@ void handleRoot() {
   html += "<h2>Sensor data</h2>";
   html += "<table border='1'>";
   html += "<tr><th>Sensor</th><th>Data</th><th>Unit</th></tr>"; // Table headers
+  html += "<tr><td>Rain Sensor (from Nano)</td><td>" + raining + "</td><td>lx</td></tr>";
   html += "<tr><td>SEN0390 Light Sensor (from Nano)</td><td>" + lightSensor + "</td><td>lx</td></tr>";
   html += "<tr><td>IR Sky Temp MLX90614</td><td>" + skyTemp + "</td><td>&#8451;</td></tr>";
   html += "<tr><td>Ambient Temperature MLX90614</td><td>" + ambientTemp + "</td><td>&#8451;</td></tr>";
@@ -174,16 +167,6 @@ void handleRoot() {
   html += "<tr><td>TSL2591 Visible spectrum</td><td>" + String(Visible) + "</td><td>-</td></tr>";
   html += "<tr><td>TSL2591 Lux</td><td>" + String(Lux) + "</td><td>Lux</td></tr>";
   html += "</table>";
-
-  html += "<h2>Serial Output</h2>";
-  html += "<div style='border:1px solid white; padding:10px; font-size:0.6 rem; height:200px; overflow-y:scroll;'>";
-  for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
-    int idx = (logIndex + i) % MAX_LOG_ENTRIES;
-    if (logEntries[idx].length() > 0) {
-        html += logEntries[idx] + "<br>";
-    }
-  }
-  html += "</div>";
 
   html += "<h2>Clear Outside Forecast Tilburg</h2>";
   html += "<a href='https://clearoutside.com/forecast/51.55/5.05'><img src='https://clearoutside.com/forecast_image_small/51.55/5.05/forecast.png'/></a>";
@@ -283,21 +266,21 @@ void fetchNanoData() {
     }
 }
 
-void processSerialData(String data) {
-  int commaIndex = data.indexOf(',');
-  String sensorID = data.substring(0, commaIndex);
-  String sensorValue = data.substring(commaIndex + 1);
+void processSerialData(const String& data) {
+    int commaIndex = data.indexOf(',');
+    if (commaIndex == -1) return;
 
-  if (sensorID == "LightSensor") {
-    if ((sensorValue != "-1") && (sensorValue != "")) {
-      lightSensor = sensorValue;
-    } else {
-      lightSensor = "dataread_failed";
+    String sensorID = data.substring(0, commaIndex);
+    String sensorValue = data.substring(commaIndex + 1);
+    sensorValue.trim();
+
+    if (sensorID == "LightSensor") {
+        // Handle LightSensor value
+        lightSensor = (sensorValue != "-1") ? sensorValue : "read_failed";
+    } else if (sensorID == "Rainsensor") {
+          raining = sensorValue; // Set raining to the numeric value if valid
     }
-  } else if (sensorID == "Raining") {
-    raining = sensorValue;
-  }
-  printNanoData(sensorID, sensorValue);
+    printNanoData(sensorID, sensorValue);
 }
 
 void printNanoData(String sensor, String value) {
@@ -306,44 +289,12 @@ void printNanoData(String sensor, String value) {
   customSerialPrintln(value);
 }
 
-void generateSensorJson() {
-  // rainValue.trim();     
-  lightSensor.trim();     
-
-  doc["raining"] = raining;
-  doc["light"] = lightSensor;
-  doc["sky_temperature"] = skyTemp;
-  doc["ambient_temperature"] = ambientTemp;
-  doc["sqm_ir"] = ir;
-  doc["sqm_full"] = full;
-  doc["sqm_visible"] = Visible;
-  doc["sqm_lux"] = Lux;
-
-  String jsonStr;
-  serializeJson(doc, jsonStr);
-  customSerialPrintln(jsonStr);
-}
-
 void startWebserver() {
   if (MDNS.begin("skymonitor")) {
     customSerialPrintln("MDNS responder started");
     customSerialPrintln("access via http://skymonitor.local");
   }
   server.on("/", handleRoot);
-  // This will handle GET requests on /json
-  server.on("/json", HTTP_GET, []() {
-    String jsonStr;
-    if (serializeJson(doc, jsonStr) == 0) {
-      server.send(500, "application/json", "{\"error\":\"Failed to generate JSON\"}");
-    } else {
-      server.send(200, "application/json", jsonStr);
-    }
-  });
-
-  // This will catch all other methods on /json
-  server.on("/json", []() {
-    server.send(405, "text/plain", "Method Not Allowed. Use GET.");
-  });
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
@@ -454,24 +405,12 @@ void scanDevices() {
     customSerialPrintln("scan done");
 }
 
-void addLogEntry(const String &message, bool newLine = true) {
-    if (newLine) {
-        logEntries[logIndex] = message;
-        logIndex = (logIndex + 1) % MAX_LOG_ENTRIES;  // Circular buffer
-    } else {
-        // Append to the last log entry
-        logEntries[(logIndex - 1 + MAX_LOG_ENTRIES) % MAX_LOG_ENTRIES] += message;
-    }
-}
-
 // Custom function to print to both Serial and the buffer
 void customSerialPrint(const String &message) {
   Serial.print(message);
-  addLogEntry(message, false);
 }
 
 // Custom function to print to both Serial and the buffer with newline
 void customSerialPrintln(const String &message) {
   customSerialPrint(message + "\n");
-  addLogEntry("\n", false);  // Append a newline to the last log entry
 }
