@@ -12,6 +12,7 @@
 #include <Adafruit_Sensor.h>
 #include "Adafruit_TSL2591.h"
 #include "cont.h"
+#include <ArduinoJson.h>
 
 // Constants for WiFi and sensors
 extern const char* ssid1;

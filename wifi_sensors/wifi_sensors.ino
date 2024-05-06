@@ -21,6 +21,7 @@ const char *ssid3 = STASSID3;
 const char *password3 = STAPSK3;
 const char *ssid4 = STASSID4;
 const char *password4 = STAPSK4;
+
 String activeWifiSSID = ""; // Initialize to an empty string
 bool wasConnected = false;  // Flag to track if WiFi was previously connected
 
@@ -36,11 +37,16 @@ float Lux;
 String lightSensor, raining;
 String nanoDataBuffer = "";
 
-// char *typeName[] = {"Object: ", "Ambient: "};
-// float tempC, tempF, tempK, tempCA, tempFA, tempKA;
-// char type = 'C'; //default temperature type C
-// char *url[] ={"/c", "/f", "/k"};
+// Collect data in JSON file
+DynamicJsonDocument doc(1024);
+
 ESP8266WebServer server(80);
+// Logging to webserver
+#define SERIAL_BUFFER_SIZE 2000
+String serialBuffer = "";
+const int MAX_LOG_ENTRIES = 50;  // Adjust as needed
+String logEntries[MAX_LOG_ENTRIES];
+int logIndex = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -103,6 +109,7 @@ void loop() {
     fetchSkyTemp();
     advancedRead();
     fetchNanoData();
+    generateSensorJson();
     memoryMonitor(); // Check memory status
   }
 
@@ -167,6 +174,16 @@ void handleRoot() {
   html += "<tr><td>TSL2591 Visible spectrum</td><td>" + String(Visible) + "</td><td>-</td></tr>";
   html += "<tr><td>TSL2591 Lux</td><td>" + String(Lux) + "</td><td>Lux</td></tr>";
   html += "</table>";
+
+  html += "<h2>Serial Output</h2>";
+  html += "<div style='border:1px solid white; padding:10px; font-size:0.4 rem; height:200px; overflow-y:scroll;'>";
+  for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
+    int idx = (logIndex + i) % MAX_LOG_ENTRIES;
+    if (logEntries[idx].length() > 0) {
+        html += logEntries[idx] + "<br>";
+    }
+  }
+  html += "</div>";
 
   html += "<h2>Clear Outside Forecast Tilburg</h2>";
   html += "<a href='https://clearoutside.com/forecast/51.55/5.05'><img src='https://clearoutside.com/forecast_image_small/51.55/5.05/forecast.png'/></a>";
@@ -298,9 +315,46 @@ void startWebserver() {
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
+  server.on("/", handleRoot);
+
+  // This will handle GET requests on /json
+  server.on("/json", HTTP_GET, []() {
+    String jsonStr;
+    if (serializeJson(doc, jsonStr) == 0) {
+      server.send(500, "application/json", "{\"error\":\"Failed to generate JSON\"}");
+    } else {
+      server.send(200, "application/json", jsonStr);
+    }
+  });
+
+  // This will catch all other methods on /json
+  server.on("/json", []() {
+    server.send(405, "text/plain", "Method Not Allowed. Use GET.");
+  });
+  server.on("/inline", []() {
+    server.send(200, "text/plain", "this works as well");
+  });
   server.onNotFound(handleNotFound);
   server.begin();
   customSerialPrintln("HTTP server started");
+}
+
+void generateSensorJson() {
+  raining.trim();     
+  lightSensor.trim();     
+
+  doc["raining"] = raining;
+  doc["light"] = lightSensor;
+  doc["sky_temperature"] = skyTemp;
+  doc["ambient_temperature"] = ambientTemp;
+  doc["sqm_ir"] = ir;
+  doc["sqm_full"] = full;
+  doc["sqm_visible"] = Visible;
+  doc["sqm_lux"] = Lux;
+
+  String jsonStr;
+  serializeJson(doc, jsonStr);
+  customSerialPrintln(jsonStr);
 }
 
 void handleNotFound() {
