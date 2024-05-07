@@ -25,19 +25,6 @@ def send_pushover_notification(user_key, api_token, message):
     response = requests.post(url, data=data)
     return response.text
 
-def send_pushover_notification(user_key, api_token, message):
-    """Send a notification via Pushover."""
-    url = 'https://api.pushover.net/1/messages.json'
-    data = {
-        'token': api_token,
-        'user': user_key,
-        'message': message,
-        'priority': 1,  # Set priority to high
-        'sound': 'siren'  # Set to a louder notification sound, if preferred
-    }
-    response = requests.post(url, data=data)
-    return response.text
-
 def read_rain_data(serial_port, baud_rate, num_samples=5):
     """Read multiple rain data samples from the serial port and return the average."""
     with serial.Serial(serial_port, baud_rate, timeout=1) as ser:
