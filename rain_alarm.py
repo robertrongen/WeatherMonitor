@@ -11,6 +11,7 @@ from app_logging import setup_logger
 logger = setup_logger('rain', 'rain.log')
 load_dotenv()  # Load environment variables from .env file
 settings = load_settings()  # Refresh settings on each call
+alert_active = False
 
 def send_pushover_notification(user_key, api_token, message):
     """Send a notification via Pushover."""
