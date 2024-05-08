@@ -38,6 +38,7 @@ def control_fan_heater():
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
     average_rain = read_rain_data(settings["serial_port"], settings["baud_rate"])
+    logger.info("average rain: ", average rain)
 
     if serial_data:
         print("Processing data:", serial_data)

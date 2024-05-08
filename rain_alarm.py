@@ -53,7 +53,7 @@ def check_rain_alert():
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     rain_threshold = settings["raining_threshold"]
     average_rain = read_rain_data(settings["serial_port"], settings["baud_rate"])
-
+    logger.info("average_rain measured: %s", average_rain)
     if average_rain is not None:
         logger.info("Average rain intensity: %s", average_rain)
         if average_rain < rain_threshold:
