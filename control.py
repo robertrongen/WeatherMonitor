@@ -11,6 +11,7 @@ from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temper
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data
+from rain_alarm import read_rain_data  # Assuming read_rain_data is the function that gets the average rain data
 from app_logging import setup_logger
 
 logger = setup_logger('control', 'control.log')
@@ -36,6 +37,8 @@ def control_fan_heater():
     serial_data = get_serial_data(settings["serial_port"], settings["baud_rate"])
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
+    average_rain = read_rain_data(settings["serial_port"], settings["baud_rate"])
+
     if serial_data:
         print("Processing data:", serial_data)
     else:
@@ -79,6 +82,7 @@ def control_fan_heater():
             "heater_status": heater_status,
             "cpu_temperature": round(cpu_temperature, 0),
             **serial_data,
+            "raining": average_rain,
             "cloud_coverage": cloud_coverage,
             "cloud_coverage_indicator": cloud_coverage_indicator,
             "brightness": brightness,
