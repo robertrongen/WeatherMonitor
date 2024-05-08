@@ -20,6 +20,12 @@
         .alert { background-color: #FF0000; color: #FFFFFF; padding: 10px; }
         .alert-success { background-color: #388e3c; color: white; padding: 10px; margin: 10px 0; }
         .alert-error { background-color: #d32f2f; color: white; padding: 10px; margin: 10px 0; }
+        .mdc-button--green {
+            --mdc-theme-primary: #4CAF50; /* Material green */
+        }
+        .mdc-button--red {
+            --mdc-theme-primary: #F44336; /* Material red */
+        }
     </style>
 </head>
 <body>
@@ -33,9 +39,8 @@
         </div>
         <div>
             <p>Alert is currently: [[ alertActive ? 'Enabled' : 'Disabled' ]]</p>
-            <button class="mdc-button mdc-button--raised" @click="toggleAlert">
-                <span class="mdc-button__label" v-if="alertActive">Disable Alert</span>
-                <span class="mdc-button__label" v-else>Enable Alert</span>
+            <button class="mdc-button" :class="{'mdc-button--raised': true, 'mdc-button--green': !alertActive, 'mdc-button--red': alertActive}" @click="toggleAlert">
+                <span class="mdc-button__label">[[ alertActive ? 'Disable Alert' : 'Enable Alert' ]]</span>
             </button>
         </div>
         <div>
