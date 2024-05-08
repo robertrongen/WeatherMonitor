@@ -6,7 +6,7 @@ import time
 import schedule
 import sqlite3
 from settings import load_settings
-from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
+from fetch_data import get_temperature_humidity, get_serial_json, get_serial_rainsensor, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data
