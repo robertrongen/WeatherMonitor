@@ -104,19 +104,21 @@ def dashboard():
 
 @app.route('/data')
 def serial_data():
-    conn = sqlite3.connect('sky_data.db')
-
-    c = conn.cursor()
-    # Calculate the timestamp for 24 hours ago
-    # time_threshold = datetime.now() - timedelta(days=1)
-    # Format it in a way that's compatible with your database's timestamp format
-    # formatted_time_threshold = time_threshold.strftime('%Y-%m-%d %H:%M:%S')
-    # Execute a query that selects entries newer than 24 hours ago
-    # c.execute('SELECT * FROM metrics WHERE timestamp >= ? ORDER BY timestamp DESC', (formatted_time_threshold,))
-    c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 25')
-    data = [dict(row) for row in c.fetchall()]
-    conn.close()
-    return jsonify(data)
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 25')
+        rows = c.fetchall()
+        print("Fetched rows:", rows)  # Debug print to check what's being fetched
+        
+        # Convert rows to dictionaries if row factory is set correctly
+        data = [dict(row) for row in rows]
+        return jsonify(data)
+    except Exception as e:
+        print(f"Error fetching or converting data: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/load-more')
 def load_more():
