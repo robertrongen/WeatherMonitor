@@ -1,10 +1,7 @@
 # rain_alarm.py
 import os
-import time
 import requests
-from statistics import mean
 from settings import load_settings
-from fetch_data import get_serial_data  # Import the function to get serial data including rain data
 from dotenv import load_dotenv
 from app_logging import setup_logger
 
@@ -26,7 +23,7 @@ def send_pushover_notification(user_key, api_token, message):
     response = requests.post(url, data=data)
     return response.text
 
-def check_rain_alert():
+def check_rain_alert(average_rain):
     """Check for rain alerts from the serial port and send notifications."""
     global alert_active
     if not alert_active:
@@ -37,7 +34,6 @@ def check_rain_alert():
     user_key = os.getenv('PUSHOVER_USER_KEY')
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     rain_threshold = settings["raining_threshold"]
-    _, average_rain = get_serial_data(settings["serial_port"], settings["baud_rate"])
     logger.info("average_rain measured: %s", average_rain)
     if average_rain is not None:
         logger.info("Average rain intensity: %s", average_rain)
@@ -48,12 +44,3 @@ def check_rain_alert():
             alert_active = False  # Disable alert until re-enabled manually
     else:
         logger.info("No valid rain data received.")
-
-if __name__ == '__main__':
-    while True:
-        try:
-            check_rain_alert()
-            time.sleep(10)
-        except Exception as e:
-            logger.error("An error occurred: %s", e)
-            time.sleep(60)  # Wait a bit longer after an error to prevent rapid failures

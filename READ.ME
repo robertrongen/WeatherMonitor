@@ -1,3 +1,11 @@
+## Add .env variables
+
+Create and fill in .env keys using example.env for:
+- OpenWeatherMap api and app keys (https://openweathermap.org/api)
+- Email 
+- SESSION_KEY: Create Web session key:
+  `python -c 'import os; print(os.urandom(24).hex())'`
+
 ## Python runs in venv
 
 - Create a new virtual environment
@@ -5,6 +13,11 @@
 `
 - Activate the new environment
 `source venv/bin/activate`
+
+- Install pip
+
+`wget https://bootstrap.pypa.io/get-pip.py`
+`python get-pip.py `
 
 - Reinstall all your packages
 `pip install -r requirements.txt
@@ -18,3 +31,16 @@
 - Remove the current virtual environment folder
 `rm -r venv
 `
+
+## Define services
+For:
+- app.py - runs flask webserver for / and /settings with dns to skymonitor.local
+- control.py - control_fan_heater(), get and store sensor data according schedule, control fan and dewheater, calls rain_alarm
+
+Create:
+1. Create service: `sudo nano /etc/systemd/system/app.service`
+2. Reload systemd: `sudo systemctl daemon-reload`
+3. Enable the service: `sudo systemctl enable app.service`
+4. Start the service: `sudo systemctl start app.service`
+5. Check status: `sudo systemctl status app.service`
+

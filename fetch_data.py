@@ -3,38 +3,64 @@ import requests
 import serial
 import json
 import psutil
+from statistics import mean
 from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')
 
 ser = None
 
-def get_serial_data(port, rate, num_samples=5):
+def get_serial_json(port, rate, timeout=120):
     """
-    Fetches data from a serial device, attempting to parse JSON strings.
-    Also handles specific non-JSON data like rain sensor readings.
+    Fetches JSON data from a serial device. Waits until a valid JSON is found or the timeout expires.
     """
-    with serial.Serial(port, rate, timeout=1) as ser:
-        rain_readings = []
-        json_data = {}
-        for _ in range(num_samples):
-            line = ser.readline().decode('utf-8').strip()
-            if line:
-                if "Rainsensor," in line:
-                    try:
-                        _, value = line.split(',')
-                        rain_readings.append(float(value))
-                    except ValueError:
-                        logger.error("Failed to parse raining data")
-                else:
-                    try:
-                        data = json.loads(line)
-                        json_data.update(data)
-                        logger.info(f"Received valid JSON data: {data}")
-                    except json.JSONDecodeError:
-                        logger.debug("Failed to decode JSON, skipping line.")
-            time.sleep(1)  # Adjust based on how frequently data is sent
-        average_rain = mean(rain_readings) if rain_readings else None
-        return json_data, average_rain
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        try:
+            with serial.Serial(port, rate, timeout=1) as ser:
+                while time.time() < end_time:
+                    line = ser.readline().decode('utf-8').strip()
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            logger.info(f"Received valid JSON data: {data}")
+                            return data
+                        except json.JSONDecodeError:
+                            logger.debug("Failed to decode JSON, skipping line.")
+                    time.sleep(1)
+        except serial.serialutil.SerialException:
+            logger.info("Serial port is busy, waiting...")
+            time.sleep(10)  # Wait a bit before trying to access the port again
+    logger.error("Timeout reached without receiving valid JSON data.")
+    return {}
+
+def get_serial_rainsensor(port, rate, num_samples=5, timeout=120):
+    """
+    Reads multiple rain sensor data samples from the serial port and returns the average.
+    Waits until enough samples are collected or the timeout expires.
+    """
+    end_time = time.time() + timeout
+    readings = []
+    while time.time() < end_time and len(readings) < num_samples:
+        try:
+            with serial.Serial(port, rate, timeout=1) as ser:
+                while time.time() < end_time and len(readings) < num_samples:
+                    line = ser.readline().decode('utf-8').strip()
+                    if "Rainsensor," in line:
+                        try:
+                            _, value = line.split(',')
+                            readings.append(float(value))
+                            if len(readings) == num_samples:
+                                average_rain = mean(readings)
+                                logger.info(f"Average rain intensity: {average_rain}")
+                                return average_rain
+                        except ValueError:
+                            logger.error("Failed to parse raining data")
+                    time.sleep(1)
+        except serial.serialutil.SerialException:
+            logger.info("Serial port is busy, waiting...")
+            time.sleep(10)  # Wait before trying again
+    logger.error("Timeout reached or insufficient data for average calculation.")
+    return None
 
 def get_temperature_humidity(url):
     """
@@ -110,7 +136,3 @@ def get_disk_usage():
     except Exception as e:
         print(f"Failed to fetch disk usage: {e}")
         return None
-
-if __name__ == "__main__":
-    read_serial_data(serial_port)
-

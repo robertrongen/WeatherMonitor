@@ -2,3 +2,4 @@
 wifi_ino/secrets.h
 settings.json
 venv/*
+__pycache__/*

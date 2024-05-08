@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-from dotenv import load_dotenv
 import os
 import sys
 

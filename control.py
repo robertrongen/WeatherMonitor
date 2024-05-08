@@ -5,13 +5,13 @@ import RPi.GPIO as GPIO
 import time
 import schedule
 import sqlite3
-import json
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data
 from app_logging import setup_logger
+from rain_alarm import check_rain_alert
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings
@@ -33,8 +33,10 @@ def control_fan_heater():
         logger.error(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
     temperature, humidity = get_temperature_humidity(temp_hum_url)
-    serial_data, average_rain = get_serial_data(settings["serial_port"], settings["baud_rate"])
-    logger.info(f"Average rain measured: {average_rain}")
+    serial_data = get_serial_json(settings["serial_port"], settings["baud_rate"])
+    raining = get_serial_rainsensor(settings["serial_port"], settings["baud_rate"])
+    logger.info("raining: ", raining)
+    check_rain_alert(raining);
 
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
@@ -82,7 +84,7 @@ def control_fan_heater():
             "heater_status": heater_status,
             "cpu_temperature": round(cpu_temperature, 0),
             **serial_data,
-            "raining": average_rain,
+            "raining": raining,
             "cloud_coverage": cloud_coverage,
             "cloud_coverage_indicator": cloud_coverage_indicator,
             "brightness": brightness,
