@@ -32,7 +32,7 @@ def read_rain_data(serial_port, baud_rate, num_samples=5):
         readings = []
         for _ in range(num_samples):
             line = ser.readline().decode().strip()
-            if "raining," in line:
+            if "Rainsensor," in line:
                 try:
                     _, value = line.split(',')
                     readings.append(float(value))
