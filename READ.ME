@@ -44,3 +44,21 @@ Create:
 4. Start the service: `sudo systemctl start app.service`
 5. Check status: `sudo systemctl status app.service`
 
+```
+[Unit]
+Description=Skymonitor Control Service
+After=network.target
+
+[Service]
+Type=simple
+User=robert
+WorkingDirectory=/home/user/skymonitor
+ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/control.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
+```

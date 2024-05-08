@@ -6,6 +6,7 @@
     <link rel="icon" type="image/ico" href="{{ url_for('static', filename='favicon.ico') }}">
     <title>Data Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body { background-color: #000000; color: #FFFFFF; font-family: Arial, sans-serif; }
         table { border-collapse: collapse; color: #FFFFFF; width: 100%;}
@@ -18,8 +19,13 @@
 </head>
 <body>
     <div id="app"> <!-- Ensure Vue controls this part of the DOM -->
-        <h1>Data Dashboard</h1>
-        <h2>Control Panel</h1>
+        <div v-if="statusMessage" class="alert" :class="{'alert-success': isSuccess, 'alert-error': !isSuccess}">
+            [[ statusMessage ]]
+        </div>
+        <div>
+            <h1>Data Dashboard</h1>
+            <h2>Control Panel</h1>
+        </div>
         <div>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -32,12 +38,12 @@
             {% if alert_active %}
                 <p>Alert is currently: Enabled</p>
                 <form action="{{ url_for('disable_alert') }}" method="post">
-                    <button type="submit" style="background-color: #d32f2f; color: white; border: none; padding: 10px 20px; cursor: pointer;">Disable Alert</button>
+                    <button type="submit" v-if="alertActive" style="background-color: #d32f2f; color: white; border: none; padding: 10px 20px; cursor: pointer;">Disable Alert</button>
                 </form>
             {% else %}
                 <p>Alert is currently: Disabled</p>
                 <form action="{{ url_for('enable_alert') }}" method="post">
-                    <button type="submit" style="background-color: #388e3c; color: white; border: none; padding: 10px 20px; cursor: pointer;">Enable Alert</button>
+                    <button type="submit" v-else style="background-color: #388e3c; color: white; border: none; padding: 10px 20px; cursor: pointer;">Enable Alert</button>
                 </form>
             {% endif %}
         </div>
@@ -47,69 +53,126 @@
                 <li><a href="http://allsky.local/allsky/index.php">Sky Monitor Camera</a></li>
                 <li><a href="/settings">Settings</a></li>
                 <li><a href="/dashboard">System Monitor Dashboard</a></li>
+                <li><a href="https://meetjestad.net/data/sensors_recent.php?sensors=580">Meet je stad data</a></li>
             </ul>
-            <h2>Data</h1>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Temperature</th>
-                    <th>Humidity</th>
-                    <th>Dew Point</th>
-                    <th>Heat Index</th>
-                    <th>Fan Status</th>
-                    <th>Heater Status</th>
-                    <th>CPU Temperature</th>
-                    <th>Raining</th>
-                    <th>Light</th>
-                    <th>Sky Temperature</th>
-                    <th>Ambient Temperature</th>
-                    <th>SQM IR</th>
-                    <th>SQM Full</th>
-                    <th>SQM Visible</th>
-                    <th>SQM Lux</th>
-                    <th>Cloud Coverage</th>
-                    <th>Cloud Coverage Indicator</th>
-                    <th>Brightness</th>
-                    <th>Bortle</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="row in rows">
-                    <td>[[ row.timestamp ]]</td>
-                    <td>[[ row.temperature ]] °C</td>
-                    <td>[[ row.humidity ]] %</td>
-                    <td>[[ row.dew_point ]] °C</td>
-                    <td>[[ row.heat_index ]] °C</td>
-                    <td>[[ row.fan_status ]]</td>
-                    <td>[[ row.heater_status ]]</td>
-                    <td>[[ row.cpu_temperature ]] °C</td>
-                    <td>[[ row.raining ]]</td>
-                    <td>[[ row.light ]]</td>
-                    <td>[[ row.sky_temperature ]] °C</td>
-                    <td>[[ row.ambient_temperature ]] °C</td>
-                    <td>[[ row.sqm_ir ]]</td>
-                    <td>[[ row.sqm_full ]]</td>
-                    <td>[[ row.sqm_visible ]]</td>
-                    <td>[[ row.sqm_lux ]]</td>
-                    <td>[[ row.cloud_coverage ]]%</td>
-                    <td>[[ row.cloud_coverage_indicator ]]</td>
-                    <td>[[ row.brightness ]]</td>
-                    <td>[[ row.bortle ]]</td>
-                </tr>
-            </tbody>
-        </table>
+        <div>
+            <h2>Data</h1>
+            <button @click="loadMore" :disabled="isLoading">Load More Records</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Temperature</th>
+                        <th>Humidity</th>
+                        <th>Dew Point</th>
+                        <th>Heat Index</th>
+                        <th>Fan Status</th>
+                        <th>Heater Status</th>
+                        <th>CPU Temperature</th>
+                        <th>Raining</th>
+                        <th>Light</th>
+                        <th>Sky Temperature</th>
+                        <th>Ambient Temperature</th>
+                        <th>SQM IR</th>
+                        <th>SQM Full</th>
+                        <th>SQM Visible</th>
+                        <th>SQM Lux</th>
+                        <th>Cloud Coverage</th>
+                        <th>Cloud Coverage Indicator</th>
+                        <th>Brightness</th>
+                        <th>Bortle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in rows">
+                        <td>[[ row.timestamp ]]</td>
+                        <td>[[ row.temperature ]] °C</td>
+                        <td>[[ row.humidity ]] %</td>
+                        <td>[[ row.dew_point ]] °C</td>
+                        <td>[[ row.heat_index ]] °C</td>
+                        <td>[[ row.fan_status ]]</td>
+                        <td>[[ row.heater_status ]]</td>
+                        <td>[[ row.cpu_temperature ]] °C</td>
+                        <td>[[ row.raining ]]</td>
+                        <td>[[ row.light ]]</td>
+                        <td>[[ row.sky_temperature ]] °C</td>
+                        <td>[[ row.ambient_temperature ]] °C</td>
+                        <td>[[ row.sqm_ir ]]</td>
+                        <td>[[ row.sqm_full ]]</td>
+                        <td>[[ row.sqm_visible ]]</td>
+                        <td>[[ row.sqm_lux ]]</td>
+                        <td>[[ row.cloud_coverage ]]%</td>
+                        <td>[[ row.cloud_coverage_indicator ]]</td>
+                        <td>[[ row.brightness ]]</td>
+                        <td>[[ row.bortle ]]</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-
     <script>
         var app = new Vue({
             el: '#app',
-            delimiters: ['[[', ']]'], // Custom delimiters for Vue
+            delimiters: ['[[', ']]'],
             data: {
-                rows: {{ data|tojson|safe }}
+                rows: [],
+                statusMessage: '',
+                isSuccess: true,
+                isLoading: false,
+                alertActive: false // Assuming this is controlled by your server-side flag
+            },
+            methods: {
+                loadMore() {
+                    this.isLoading = true;
+                    fetch('/load-more')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.rows = this.rows.concat(data);
+                            this.statusMessage = 'More records loaded successfully.';
+                            this.isSuccess = true;
+                        })
+                        .catch(error => {
+                            this.statusMessage = 'Error loading more data.';
+                            this.isSuccess = false;
+                            console.error('Error:', error);
+                        })
+                        .finally(() => this.isLoading = false);
+                },
+                toggleAlert() {
+                    this.isLoading = true;
+                    const actionUrl = this.alertActive ? '/disable-alert' : '/enable-alert';
+                    fetch(actionUrl, { method: 'POST' })
+                        .then(response => {
+                            if (response.ok) {
+                                this.alertActive = !this.alertActive;
+                                this.statusMessage = this.alertActive ? 'Alert enabled.' : 'Alert disabled.';
+                                this.isSuccess = true;
+                            } else {
+                                throw new Error('Failed to toggle alert status.');
+                            }
+                        })
+                        .catch(error => {
+                            this.statusMessage = 'Error toggling alert status.';
+                            this.isSuccess = false;
+                            console.error('Error:', error);
+                        })
+                        .finally(() => this.isLoading = false);
+                },
+                fetchData() {
+                    fetch('/data')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.rows = data;
+                        })
+                        .catch(error => console.error('Error loading the data:', error));
+                }
+            },
+            mounted() {
+                this.fetchData(); // Fetch initial data
+                setInterval(this.fetchData, 120000); // Refresh data every 2 minutes
             }
         });
-    </script>
-</body>
+        </script>
+        </body>
 </html>
