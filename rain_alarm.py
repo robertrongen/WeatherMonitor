@@ -67,4 +67,4 @@ def check_rain_alert():
 if __name__ == '__main__':
     while True:
         check_rain_alert()
-        time.sleep(60)  # Check every minute, adjust as necessary
+        # time.sleep(60)  # Check every minute, adjust as necessary
