@@ -51,5 +51,9 @@ def check_rain_alert():
 
 if __name__ == '__main__':
     while True:
-        check_rain_alert()
-        time.sleep(10)
+        try:
+            check_rain_alert()
+            time.sleep(10)
+        except Exception as e:
+            logger.error("An error occurred: %s", e)
+            time.sleep(60)  # Wait a bit longer after an error to prevent rapid failures
