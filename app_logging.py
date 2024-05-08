@@ -27,7 +27,7 @@ def setup_email_logging(logger):
     mail_handler.setFormatter(logging.Formatter("Critical error in %(name)s: %(message)s"))
     logger.addHandler(mail_handler)
 
-def setup_logger(name, log_file, level=logging.DEBUG):
+def setup_logger(name, log_file, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
