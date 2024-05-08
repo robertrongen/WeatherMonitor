@@ -110,20 +110,15 @@
         </div>
     </div>
     <script>
-        var initialData = {
-            alertActive: {{ alert_active | tojson }},
-            rows: {{ data | tojson | safe }}
-        };
-
         var app = new Vue({
             el: '#app',
             delimiters: ['[[', ']]'],
             data: {
-                rows: initialData.rows,
+                rows: [],
                 statusMessage: '',
                 isSuccess: true,
                 isLoading: false,
-                alertActive: initialData.alertActive
+                alertActive: {{ alert_active | tojson }},
             },
             methods: {
                 loadMore() {
@@ -133,6 +128,7 @@
                             this.rows = this.rows.concat(response.data);
                             this.statusMessage = 'More records loaded successfully.';
                             this.isSuccess = true;
+                            this.initMDC(); // Re-initialize MDC components
                         })
                         .catch((error) => {
                             this.statusMessage = 'Error loading more data.';
@@ -150,6 +146,7 @@
                                 this.alertActive = !this.alertActive;
                                 this.statusMessage = this.alertActive ? 'Alert Enabled.' : 'Alert Disabled.';
                                 this.isSuccess = true;
+                                this.initMDC(); // Re-initialize MDC components
                             } else {
                                 throw new Error('Failed to toggle alert status.');
                             }
@@ -165,19 +162,21 @@
                     axios.get('/data')
                         .then((response) => {
                             this.rows = response.data;
+                            this.initMDC(); // Re-initialize MDC components
                         })
                         .catch((error) => {
                             console.error('Error loading the data:', error);
                         });
+                },
+                initMDC() {
+                    mdc.autoInit(); // This function initializes all MDC components in the document
                 }
             },
             mounted() {
                 this.fetchData();
                 setInterval(this.fetchData, 120000); // Refresh data every 2 minutes
+                this.initMDC(); // Initial call to setup Material Design Components
             }
-        });
-        document.addEventListener('DOMContentLoaded', function() {
-            mdc.autoInit();
         });
     </script>
 </body>
