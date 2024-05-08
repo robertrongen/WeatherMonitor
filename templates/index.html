@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Data Dashboard</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/ico" href="{{ url_for('static', filename='favicon.ico') }}">
-    <title>Data Dashboard</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@material/web/dist/material-components-web.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@material/web/dist/material-components-web.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
@@ -30,8 +33,12 @@
         </div>
         <div>
             <p>Alert is currently: [[ alertActive ? 'Enabled' : 'Disabled' ]]</p>
-            <button @click="toggleAlert" :style="{backgroundColor: alertActive ? '#d32f2f' : '#388e3c', color: 'white'}">[[ alertActive ? 'Disable Alert' : 'Enable Alert' ]]</button>
-        </div>        <div>
+            <button class="mdc-button mdc-button--raised" @click="toggleAlert">
+                <span class="mdc-button__label" v-if="alertActive">Disable Alert</span>
+                <span class="mdc-button__label" v-else>Enable Alert</span>
+            </button>
+        </div>
+        <div>
             <h2>Links</h1>
                 <ul>
                 <li><a href="http://allsky.local/allsky/index.php">Sky Monitor Camera</a></li>
@@ -42,7 +49,9 @@
         </div>
         <div>
             <h2>Data</h1>
-            <button @click="loadMore" :disabled="isLoading">Load More Records</button>
+            <button class="mdc-button mdc-button--raised" @click="loadMore" :disabled="isLoading">
+                <span class="mdc-button__label">Load More Records</span>
+            </button>
             <table>
                 <thead>
                     <tr>
@@ -161,6 +170,9 @@
                 this.fetchData();
                 setInterval(this.fetchData, 120000); // Refresh data every 2 minutes
             }
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            mdc.autoInit();
         });
     </script>
 </body>
