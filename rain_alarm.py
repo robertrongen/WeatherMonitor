@@ -8,7 +8,7 @@ from fetch_data import get_serial_data  # Import the function to get serial data
 from dotenv import load_dotenv
 from app_logging import setup_logger
 
-logger = setup_logger('rain', 'rain.log', level=logging.DEBUG)
+logger = setup_logger('rain', 'rain.log')
 load_dotenv()  # Load environment variables from .env file
 settings = load_settings()  # Refresh settings on each call
 alert_active = False
