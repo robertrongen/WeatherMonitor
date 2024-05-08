@@ -104,7 +104,7 @@ def dashboard():
 
 @app.route('/data')
 def serial_data():
-    conn = get_db_connection()
+    conn = sqlite3.connect('sky_data.db')
     try:
         c = conn.cursor()
         c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 25')
