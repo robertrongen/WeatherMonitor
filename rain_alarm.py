@@ -2,7 +2,6 @@
 import os
 import time
 import requests
-import serial
 from statistics import mean
 from settings import load_settings
 from fetch_data import get_serial_data  # Import the function to get serial data including rain data
