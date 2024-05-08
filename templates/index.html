@@ -110,6 +110,12 @@
         </div>
     </div>
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof mdc !== 'undefined') {
+                mdc.autoInit();
+            }
+        });
+
         var app = new Vue({
             el: '#app',
             delimiters: ['[[', ']]'],
