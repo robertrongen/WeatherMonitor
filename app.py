@@ -112,8 +112,8 @@ def serial_data():
     # Format it in a way that's compatible with your database's timestamp format
     formatted_time_threshold = time_threshold.strftime('%Y-%m-%d %H:%M:%S')
     # Execute a query that selects entries newer than 24 hours ago
-    # c.execute('SELECT * FROM metrics WHERE timestamp >= ? ORDER BY timestamp DESC', (formatted_time_threshold,))
-    c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 10')
+    c.execute('SELECT * FROM metrics WHERE timestamp >= ? ORDER BY timestamp DESC', (formatted_time_threshold,))
+    # c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 10')
     data = [dict(row) for row in c.fetchall()]
     conn.close()
     return jsonify(data)
