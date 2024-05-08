@@ -11,7 +11,6 @@ from fetch_data import get_temperature_humidity, get_serial_data, get_cpu_temper
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data
-from rain_alarm import read_rain_data  # Assuming read_rain_data is the function that gets the average rain data
 from app_logging import setup_logger
 
 logger = setup_logger('control', 'control.log')
@@ -34,11 +33,11 @@ def control_fan_heater():
         logger.error(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
     temperature, humidity = get_temperature_humidity(temp_hum_url)
-    serial_data = get_serial_data(settings["serial_port"], settings["baud_rate"])
+    serial_data, average_rain = get_serial_data(settings["serial_port"], settings["baud_rate"])
+    logger.info(f"Average rain measured: {average_rain}")
+
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
-    average_rain = read_rain_data(settings["serial_port"], settings["baud_rate"])
-    logger.info("average_rain: ", average_rain)
 
     if serial_data:
         print("Processing data:", serial_data)

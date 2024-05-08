@@ -5,10 +5,11 @@ import requests
 import serial
 from statistics import mean
 from settings import load_settings
+from fetch_data import get_serial_data  # Import the function to get serial data including rain data
 from dotenv import load_dotenv
 from app_logging import setup_logger
 
-logger = setup_logger('rain', 'rain.log')
+logger = setup_logger('rain', 'rain.log', level=logging.DEBUG)
 load_dotenv()  # Load environment variables from .env file
 settings = load_settings()  # Refresh settings on each call
 alert_active = False
@@ -26,22 +27,6 @@ def send_pushover_notification(user_key, api_token, message):
     response = requests.post(url, data=data)
     return response.text
 
-def read_rain_data(serial_port, baud_rate, num_samples=5):
-    """Read multiple rain data samples from the serial port and return the average."""
-    with serial.Serial(serial_port, baud_rate, timeout=1) as ser:
-        readings = []
-        for _ in range(num_samples):
-            line = ser.readline().decode().strip()
-            logger.debug(f"Received line: {line}")
-            if "Rainsensor," in line:
-                try:
-                    _, value = line.split(',')
-                    readings.append(float(value))
-                except ValueError:
-                    logger.error("Failed to parse raining data")
-            time.sleep(1)  # Adjust as necessary based on how frequently data is sent
-    return mean(readings) if readings else None
-
 def check_rain_alert():
     """Check for rain alerts from the serial port and send notifications."""
     global alert_active
@@ -53,7 +38,7 @@ def check_rain_alert():
     user_key = os.getenv('PUSHOVER_USER_KEY')
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     rain_threshold = settings["raining_threshold"]
-    average_rain = read_rain_data(settings["serial_port"], settings["baud_rate"])
+    _, average_rain = get_serial_data(settings["serial_port"], settings["baud_rate"])
     logger.info("average_rain measured: %s", average_rain)
     if average_rain is not None:
         logger.info("Average rain intensity: %s", average_rain)
@@ -68,4 +53,4 @@ def check_rain_alert():
 if __name__ == '__main__':
     while True:
         check_rain_alert()
-        # time.sleep(60)  # Check every minute, adjust as necessary
+        time.sleep(10)

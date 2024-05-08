@@ -8,28 +8,33 @@ logger = setup_logger('fetch_data', 'fetch_data.log')
 
 ser = None
 
-def get_serial_data(port, rate):
+def get_serial_data(port, rate, num_samples=5):
     """
     Fetches data from a serial device, attempting to parse JSON strings.
-    Ignores non-JSON messages and continues reading until a valid JSON is found.
+    Also handles specific non-JSON data like rain sensor readings.
     """
-    ser = serial.Serial(port, rate, timeout=1)
-    try:
-        while True:
+    with serial.Serial(port, rate, timeout=1) as ser:
+        rain_readings = []
+        json_data = {}
+        for _ in range(num_samples):
             line = ser.readline().decode('utf-8').strip()
             if line:
-                logger.debug(f"Received line: {line}")
-                try:
-                    data = json.loads(line)
-                    logger.info(f"Received valid JSON data: {data}")
-                    return data
-                except json.JSONDecodeError:
-                    logger.debug("Failed to decode JSON, skipping line.")
-    except Exception as e:
-        logger.error(f"Error reading from serial port: {e}")
-    finally:
-        ser.close()
-    return None
+                if "Rainsensor," in line:
+                    try:
+                        _, value = line.split(',')
+                        rain_readings.append(float(value))
+                    except ValueError:
+                        logger.error("Failed to parse raining data")
+                else:
+                    try:
+                        data = json.loads(line)
+                        json_data.update(data)
+                        logger.info(f"Received valid JSON data: {data}")
+                    except json.JSONDecodeError:
+                        logger.debug("Failed to decode JSON, skipping line.")
+            time.sleep(1)  # Adjust based on how frequently data is sent
+        average_rain = mean(rain_readings) if rain_readings else None
+        return json_data, average_rain
 
 def get_temperature_humidity(url):
     """
