@@ -41,10 +41,10 @@ def control_fan_heater():
     temperature, humidity = get_temperature_humidity(temp_hum_url)
 
     raining = get_serial_rainsensor(settings["serial_port_rain"], settings["baud_rate"])
-    print(f"raining: {raining}")
-    logger.info(f"raining: {raining}")
-
+    print(f"average rain: {raining}")
+    logger.info(f"average rain: {raining}")
     check_rain_alert(raining);
+
     serial_data = get_serial_json(settings["serial_port_json"], settings["baud_rate"])
     print("serial data: ", serial_data)
 
