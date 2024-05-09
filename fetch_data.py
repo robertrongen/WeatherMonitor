@@ -23,11 +23,11 @@ def get_serial_json(port, rate, timeout=120):
                     if line:
                         try:
                             data = json.loads(line)
-                            print(f"Received valid JSON data: {data}")
-                            logger.info(f"Received valid JSON data: {data}")
+                            print(f"Received valid JSON data: {line}")
+                            logger.info(f"Received valid JSON data: {line}")
                             return data
                         except json.JSONDecodeError:
-                            print(f"Failed to decode JSON or no JSON: {data}, skipping line.")
+                            print(f"Failed to decode JSON or no JSON: {line}, skipping line.")
                             logger.debug(f"Failed to decode JSON or no JSON: {data}, skipping line.")
                     time.sleep(1)
         except serial.serialutil.SerialException:
@@ -50,7 +50,7 @@ def get_serial_rainsensor(port, rate, num_samples=20, timeout=120):
             with serial.Serial(port, rate, timeout=1) as ser:
                 while time.time() < end_time and len(readings) < num_samples:
                     line = ser.readline().decode('utf-8').strip()
-                    print(f"line = {line}")
+                    print(f"line (rain) = {line}")
                     if "Rainsensor," in line:
                         try:
                             _, value = line.split(',')
