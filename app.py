@@ -6,12 +6,13 @@ import sqlite3
 import json
 import os
 import pytz
+import redis
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from settings import load_settings
 
 app = Flask(__name__)
-
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 load_dotenv()
 app.secret_key = os.getenv('SESSION_KEY')
 app.config["SESSION_TYPE"] = "filesystem"
@@ -56,19 +57,23 @@ def read_log_file(path):
     except IOError:
         return ["Unable to read file, please check the file path and permissions."]
 
-# Global variable to store the alert state
-alert_active = False
+def set_alert_active(state: bool):
+    r.set('alert_active', state)
 
+def get_alert_active() -> bool:
+    # Retrieve the value from Redis, which returns 'None' if the key does not exist
+    state = r.get('alert_active')
+    # Convert 'None' to 'False' as default state
+    return state == 'True' if state is not None else False
+    
 @app.route('/enable-alert', methods=['POST'])
 def enable_alert():
-    global alert_active
-    alert_active = True
+    set_alert_active(True)
     return redirect(url_for('index'))
 
 @app.route('/disable-alert', methods=['POST'])
 def disable_alert():
-    global alert_active
-    alert_active = False
+    set_alert_active(False)
     return redirect(url_for('index'))
 
 @app.route('/')
@@ -107,8 +112,6 @@ def notify_new_data():
     else:
         print("Error: No data available to send.")
 
-if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
 @app.route('/settings', methods=['GET', 'POST'])
 def settings_page():
     settings = load_settings()
@@ -163,3 +166,5 @@ def test_connect():
 def test_disconnect():
     app.logger.info('Client disconnected')
 
+if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
