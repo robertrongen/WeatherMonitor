@@ -58,14 +58,16 @@ def read_log_file(path):
         return ["Unable to read file, please check the file path and permissions."]
 
 def set_alert_active(state: bool):
-    r.set('alert_active', state)
+    with open('alert_status.txt', 'w') as file:
+        file.write(str(state))
 
 def get_alert_active() -> bool:
-    # Retrieve the value from Redis, which returns 'None' if the key does not exist
-    state = r.get('alert_active')
-    # Convert 'None' to 'False' as default state
-    return state == 'True' if state is not None else False
-    
+    try:
+        with open('alert_status.txt', 'r') as file:
+            return file.read().strip().lower() == 'true'
+    except FileNotFoundError:
+        return None  # Default value or handle the absence of the file
+        
 @app.route('/enable-alert', methods=['POST'])
 def enable_alert():
     set_alert_active(True)
@@ -168,4 +170,6 @@ def test_disconnect():
     app.logger.info('Client disconnected')
 
 if __name__ == '__main__':
+    if get_alert_active() is None:
+        set_alert_active(False)
     socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
