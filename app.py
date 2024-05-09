@@ -104,13 +104,12 @@ def dashboard():
 
 @app.route('/data')
 def serial_data():
-    conn = sqlite3.connect('sky_data.db')
+    conn = get_db_connection()
     try:
         c = conn.cursor()
         c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 25')
         rows = c.fetchall()
         print("Fetched rows:", rows)  # Debug print to check what's being fetched
-        
         # Convert rows to dictionaries if row factory is set correctly
         data = [dict(row) for row in rows]
         return jsonify(data)
@@ -170,4 +169,4 @@ def notify_new_data():
     socketio.emit('new_data', {'data': data}, namespace='/data')
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0')
+    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)

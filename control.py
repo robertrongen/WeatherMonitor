@@ -15,7 +15,7 @@ from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data, setup_database
 from app_logging import setup_logger
 from rain_alarm import check_rain_alert
-from app import notify_new_data
+from app import notify_new_data, get_db_connection
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings
@@ -81,7 +81,7 @@ def control_fan_heater():
         bortle = round(bortle, 1) if bortle is not None else None
         
         # store data
-        conn = sqlite3.connect('sky_data.db')
+        conn = get_db_connection()
         try:
             data = {
                 "temperature": round(temperature,1),
