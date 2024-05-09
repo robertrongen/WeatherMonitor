@@ -3,6 +3,7 @@ import requests
 import serial
 import json
 import psutil
+import time
 from statistics import mean
 from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')

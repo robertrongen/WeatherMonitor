@@ -41,11 +41,6 @@ def control_fan_heater():
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
 
-    if serial_data:
-        print("Processing data:", serial_data)
-    else:
-        print("No valid data received.")
-
     if temperature and humidity and serial_data:
         # Control fan and heater
         dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
