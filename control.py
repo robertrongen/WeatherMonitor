@@ -7,7 +7,6 @@ except (ImportError, RuntimeError):
     print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
     GPIO = None
 import time
-import schedule
 import sqlite3
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_json, get_serial_rainsensor, get_cpu_temperature, get_memory_usage
@@ -103,17 +102,13 @@ def control_fan_heater():
         store_sky_data(data, conn)
         conn.close()
 
-# Schedule to check temperature and humidity every 10 minutes
-control_fan_heater()
-schedule.every(settings["interval_time"]).seconds.do(control_fan_heater)
-logger.info("Setup complete, running automated tasks.")
-
 if __name__ == '__main__':
     setup_database()
     try:
+    control_fan_heater()
         while True:
-            schedule.run_pending()
             time.sleep(settings["sleep_time"])
+            control_fan_heater()
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
     finally:

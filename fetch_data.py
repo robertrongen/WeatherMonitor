@@ -31,8 +31,8 @@ def get_serial_json(port, rate, timeout=120):
                             logger.debug(f"Failed to decode JSON or no JSON: {data}, skipping line.")
                     time.sleep(1)
         except serial.serialutil.SerialException:
-            print("Serial port is busy, waiting...")
-            logger.info("Serial port is busy, waiting...")
+            print("Serial port for json is busy, waiting...")
+            logger.info("Serial port for json is busy, waiting...")
             time.sleep(10)  # Wait a bit before trying to access the port again
     print("Timeout reached without receiving valid JSON data.")
     logger.error("Timeout reached without receiving valid JSON data.")
@@ -63,11 +63,11 @@ def get_serial_rainsensor(port, rate, num_samples=20, timeout=120):
                             logger.error("Failed to parse raining data")
                     time.sleep(1)
         except serial.serialutil.SerialException:
-            print("Serial port is busy, waiting...")
-            logger.info("Serial port is busy, waiting...")
+            print("Serial port for rain is busy, waiting...")
+            logger.info("Serial port for rain is busy, waiting...")
             time.sleep(10)  # Wait before trying again
-    print("Timeout reached or insufficient data for average calculation.")
-    logger.error("Timeout reached or insufficient data for average calculation.")
+    print("Timeout reached or insufficient rain data for average calculation.")
+    logger.error("Timeout reached or insufficient rain data for average calculation.")
     return None
 
 def get_temperature_humidity(url):

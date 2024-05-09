@@ -72,15 +72,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col-sm-4">
-                    <label for="interval_time" class="form-label">Interval Time (seconds):</label>
-                </div>
-                <div class="col-sm-8">
-                    <input type="text" name="interval_time" value="{{ settings['interval_time'] }}" class="form-control">
-                </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-sm-4">
-                    <label for="sleep_time" class="form-label">Sleep Time (seconds):</label>
+                    <label for="sleep_time" class="form-label">Sleep Time for control.py (seconds):</label>
                 </div>
                 <div class="col-sm-8">
                     <input type="number" name="sleep_time" value="{{ settings['sleep_time'] }}" class="form-control">
@@ -96,7 +88,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col-sm-4">
-                    <label for="serial_port" class="form-label">Serial Port Rain Sensor:</label>
+                    <label for="serial_port_rain" class="form-label">Serial Port Rain Sensor:</label>
                 </div>
                 <div class="col-sm-8">
                     <input type="text" name="serial_port_rain" value="{{ settings['serial_port_rain'] }}" class="form-control">
@@ -104,7 +96,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col-sm-4">
-                    <label for="serial_port" class="form-label">Serial Port JSON file:</label>
+                    <label for="serial_port_json" class="form-label">Serial Port JSON file:</label>
                 </div>
                 <div class="col-sm-8">
                     <input type="text" name="serial_port_json" value="{{ settings['serial_port_json'] }}" class="form-control">
