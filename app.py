@@ -79,8 +79,9 @@ def disable_alert():
 @app.route('/')
 def index():
     rows_list = get_latest_data()
+    alert_active_status=get_alert_active()
     if rows_list:
-        return render_template('index.html', data=rows_list, alert_active=alert_active)
+        return render_template('index.html', data=rows_list, alert_active=alert_active_status)
     else:
         return jsonify({"error": "Error fetching rows_list"}), 500
 
