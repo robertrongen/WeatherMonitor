@@ -105,7 +105,7 @@ def control_fan_heater():
 if __name__ == '__main__':
     setup_database()
     try:
-    control_fan_heater()
+        control_fan_heater()
         while True:
             time.sleep(settings["sleep_time"])
             control_fan_heater()
