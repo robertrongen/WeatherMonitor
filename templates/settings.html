@@ -122,8 +122,8 @@
         
                 // Validate Raining Threshold
                 const rainingValue = document.querySelector('input[name="raining_threshold"]');
-                if (rainingValue.value === '' || isNaN(rainingValue.value) || rainingValue.value < 50 || rainingValue.value > 500) {
-                    alert('Raining Threshold must be a number between 50 and 500.');
+                if (rainingValue.value === '' || isNaN(rainingValue.value) || rainingValue.value < 10 || rainingValue.value > 500) {
+                    alert('Raining Threshold must be a number between 10 and 500.');
                     isValid = false;
                 }
         
