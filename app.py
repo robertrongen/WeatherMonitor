@@ -39,11 +39,10 @@ def get_latest_data():
         rows = c.fetchall()
         # Convert rows to list of dicts to ensure JSON serializability
         rows_list = [dict(row) for row in rows]
-        # timestamps = [row['timestamp'] for row in rows_list]  # Extracting timestamps as normal
         # Convert UTC timestamps to CET/CEST for display
         for row in rows_list:
             row['timestamp'] = utc_to_cet(row['timestamp'])
-        return [dict(row) for row in rows]
+        return rows_list 
     except Exception as e:
         print(f"Error fetching or converting data: {e}")
         return []
