@@ -15,6 +15,7 @@ from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data, setup_database
 from app_logging import setup_logger
 from rain_alarm import check_rain_alert
+from app import notify_new_data
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings
@@ -81,26 +82,30 @@ def control_fan_heater():
         
         # store data
         conn = sqlite3.connect('sky_data.db')
-        data = {
-            "temperature": round(temperature,1),
-            "humidity": round(humidity, 1),
-            "dew_point": dewPoint,
-            "heat_index": heatIndex,
-            "fan_status": fan_status,
-            "heater_status": heater_status,
-            "cpu_temperature": round(cpu_temperature, 0),
-            **serial_data,
-            "raining": raining,
-            "cloud_coverage": cloud_coverage,
-            "cloud_coverage_indicator": cloud_coverage_indicator,
-            "brightness": brightness,
-            "bortle": bortle,
-            "sky_temperature": sky_temperature,  # Ensure the rounded value is used
-            "sqm_lux": sqm_lux  # Ensure the rounded value is used
-        }
-        logger.debug("Storing data: %s", data)
-        store_sky_data(data, conn)
-        conn.close()
+        try:
+            data = {
+                "temperature": round(temperature,1),
+                "humidity": round(humidity, 1),
+                "dew_point": dewPoint,
+                "heat_index": heatIndex,
+                "fan_status": fan_status,
+                "heater_status": heater_status,
+                "cpu_temperature": round(cpu_temperature, 0),
+                "cloud_coverage": cloud_coverage,
+                "cloud_coverage_indicator": cloud_coverage_indicator,
+                "brightness": brightness,
+                "bortle": bortle,
+                "sky_temperature": sky_temperature,  # Ensure the rounded value is used
+                "sqm_lux": sqm_lux  # Ensure the rounded value is used
+            }
+            data.update(serial_data)  # Merges serial_data into the dictionary, which includes 'raining'
+            if raining is not None:
+                data["raining"] = raining
+            logger.debug("Storing data: %s", data)
+            store_sky_data(data, conn)
+            notify_new_data()
+        finally:
+            conn.close()
 
 if __name__ == '__main__':
     setup_database()

@@ -1,37 +1,28 @@
+# Installation
 ## Add .env variables
-
 Create and fill in .env keys using example.env for:
 - OpenWeatherMap api and app keys (https://openweathermap.org/api)
 - Email 
 - SESSION_KEY: Create Web session key:
   `python -c 'import os; print(os.urandom(24).hex())'`
-
-## Python runs in venv
-
+## Activate virtual env for Python (venv)
 - Create a new virtual environment
-`python3 -m venv venv
-`
+`python3 -m venv venv`
 - Activate the new environment
 `source venv/bin/activate`
-
 - Install pip
-
 `wget https://bootstrap.pypa.io/get-pip.py`
 `python get-pip.py `
-
 - Reinstall all your packages
 `pip install -r requirements.txt
-
 - Update requirements after installing new packages
-`pipreq`
-
+`pipreq -g`
 - Deactivate the current environment
 `deactivate
 `
 - Remove the current virtual environment folder
 `rm -r venv
 `
-
 ## Define services
 For:
 - app.py - runs flask webserver for / and /settings with dns to skymonitor.local
@@ -48,7 +39,6 @@ Create:
 [Unit]
 Description=Skymonitor Control Service
 After=network.target
-
 [Service]
 Type=simple
 User=robert
@@ -58,7 +48,34 @@ Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=inherit
-
 [Install]
 WantedBy=multi-user.target
 ```
+# Operation
+## Code update procedure
+On RPi:
+1. `git commit -a` & `git push` "settings.json" from RPi
+
+On development laptop:
+2. Update and test code
+3. `git commit -a` & `git push` the updates 
+
+On RPi:
+4. `git pull `
+5. `sudo systemctl restart app`
+6. `sudo systemctl restart control`
+## Testing and bug fixing
+### On development laptop: 
+- Use `python3 serial_test_data.py` to generate serial data and follow port setting instruction
+### On RPi (remote session):
+Check log files using `cat control.log` in ~\github\skymonitor
+- control.log 
+- app.log 
+- fetch_data.log 
+- store_data.log
+- database_operations.log
+- rain.log
+
+check journal:
+- sudo journalctl -u control.service
+- sudo journalctl -u app.service 

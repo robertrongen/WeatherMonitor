@@ -12,9 +12,9 @@ def generate_json():
         'sky_temperature': f"{random.uniform(-2, 0):.2f}",
         'ambient_temperature': f"{random.uniform(50, 60):.2f}",
         'sqm_ir': 65535,
-        'sqm_full': 65535,
-        'sqm_visible': 0,
-        'sqm_lux': -1
+        'sqm_full': 65575,
+        'sqm_visible': 40,
+        'sqm_lux': 20
     }
     return json.dumps(data)
 

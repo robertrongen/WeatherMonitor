@@ -1,6 +1,7 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from flask_session import Session
+from flask_socketio import SocketIO, emit
 import sqlite3
 import json
 import os
@@ -15,6 +16,7 @@ load_dotenv()
 app.secret_key = os.getenv('SESSION_KEY')
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+socketio = SocketIO(app)
 
 def get_db_connection():
     conn = sqlite3.connect('sky_data.db')
@@ -105,7 +107,7 @@ def serial_data():
     conn = sqlite3.connect('sky_data.db')
     try:
         c = conn.cursor()
-        c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 25')
+        c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 25')
         rows = c.fetchall()
         print("Fetched rows:", rows)  # Debug print to check what's being fetched
         
@@ -122,7 +124,7 @@ def serial_data():
 def load_more():
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 100 OFFSET 10')  # Adjust OFFSET based on initial data load
+    c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 100 OFFSET 10')  # Adjust OFFSET based on initial data load
     data = [dict(row) for row in c.fetchall()]
     conn.close()
     return jsonify(data)
@@ -154,5 +156,18 @@ def index_test():
         print(f"Error fetching data: {e}")
     return render_template('index_test.html', data=rows, timestamps=json.dumps(timestamps))
 
+@socketio.on('connect')
+def test_connect():
+    app.logger.info('Client connected')
+
+@socketio.on('disconnect')
+def test_disconnect():
+    app.logger.info('Client disconnected')
+
+def notify_new_data():
+    """Function to emit new data to all connected clients."""
+    data = get_data()
+    socketio.emit('new_data', {'data': data}, namespace='/data')
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    socketio.run(app, debug=True, host='0.0.0.0')
