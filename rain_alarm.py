@@ -27,6 +27,7 @@ def check_rain_alert(average_rain):
     """Check for rain alerts from the serial port and send notifications."""
     global alert_active
     if not alert_active:
+        print("Rain alert not active")
         return
 
     global settings
@@ -34,15 +35,16 @@ def check_rain_alert(average_rain):
     user_key = os.getenv('PUSHOVER_USER_KEY')
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     rain_threshold = settings["raining_threshold"]
-    print("average_rain measured: %s", average_rain)
-    logger.info("average_rain measured: %s", average_rain)
+
+    print(f"average_rain measured: {average_rain}")
+    logger.info(f"average_rain measured: {average_rain}")
     if average_rain is not None:
-        logger.info("Average rain intensity: %s", average_rain)
+        logger.info(f"Average rain intensity: {average_rain}")
         if average_rain < rain_threshold:
             message = "Alert: It's raining! Rain intensity: {}".format(average_rain)
             send_pushover_notification(user_key, api_token, message)
-            print(f"Rain alert sent. Rain intensity: %s", average_rain)
-            logger.info(f"Rain alert sent. Rain intensity: %s", average_rain)
+            print(f"Rain alert sent. Rain intensity: {average_rain}")
+            logger.info(f"Rain alert sent. Rain intensity: {average_rain}")
             alert_active = False  # Disable alert until re-enabled manually
     else:
         print(f"No valid rain data received: {average_rain}")

@@ -35,7 +35,7 @@ def get_serial_json(port, rate, timeout=120):
         time.sleep(10)  # Wait a bit before trying to access the port again
     print("Timeout reached without receiving valid JSON data.")
     logger.error("Timeout reached without receiving valid JSON data.")
-    return {}
+    return None
 
 def get_serial_rainsensor(port, rate, num_samples=20, timeout=120):
     """

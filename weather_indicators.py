@@ -25,7 +25,7 @@ def calculate_indicators(ambient_temperature, sky_temperature, sqm_lux):
         brightness = 22.0 - 2.512 * log10(sqm_lux)
         bortle = 1539.7 * 2.7 ** (-0.28 * brightness)
     else:
-        print("Error: Invalid sqm_lux data.")
+        print("Skipping sqm_lux data (<= 0).")
 
     return cloud_coverage, cloud_coverage_indicator, brightness, bortle
 
