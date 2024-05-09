@@ -82,12 +82,10 @@ def settings_page():
         settings['sleep_time'] = int(request.form.get('sleep_time', settings['sleep_time']))
         settings['baud_rate'] = int(request.form.get('baud_rate', settings['baud_rate']))
 
-        # For floating point value
-        settings['interval_time'] = float(request.form.get('interval_time', settings['interval_time']))
-
         # For string values (no type conversion needed)
         settings['temp_hum_url'] = request.form.get('temp_hum_url', settings['temp_hum_url'])
-        settings['serial_port'] = request.form.get('serial_port', settings['serial_port'])
+        settings['serial_port_rain'] = request.form.get('serial_port_rain', settings['serial_port_rain'])
+        settings['serial_port_json'] = request.form.get('serial_port_json', settings['serial_port_json'])
 
         # Save updated settings to a file
         with open('settings.json', 'w') as f:
