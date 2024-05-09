@@ -3,3 +3,8 @@ wifi_ino/secrets.h
 settings.json
 venv/*
 __pycache__/*
+.vscode/gpio_mock.py
+flask_session/*
+*.log
+launch.json
+*.db

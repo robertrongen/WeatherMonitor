@@ -1,9 +1,12 @@
 {
     "ambient_temp_threshold": 20,
-    "cpu_temp_threshold": 65,
-    "interval_time": 300,
-    "sleep_time": 60,
-    "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-    "serial_port": "/dev/ttyUSB0",
+    "dewpoint_threshold": 5,
+    "cpu_temp_threshold": 70,
+    "memory_usage_threshold": 65,
+    "interval_time": 60.0,
+    "sleep_time": 1,
+    "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=XXX&format=json&limit=1",
+    "serial_port_rain": "/dev/ttyUSB0",
+    "serial_port_json": "/dev/ttyUSB1",
     "baud_rate": 115200
 }

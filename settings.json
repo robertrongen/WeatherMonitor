@@ -6,6 +6,7 @@
     "interval_time": 60.0,
     "sleep_time": 1,
     "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-    "serial_port": "/dev/ttyUSB0",
+    "serial_port_rain": "/dev/pts/3",
+    "serial_port_json": "/dev/pts/3",
     "baud_rate": 115200
 }

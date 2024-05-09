@@ -1,7 +1,11 @@
 # control.py
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+except (ImportError, RuntimeError):
+    print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
+    GPIO = None
 import time
 import schedule
 import sqlite3
@@ -9,34 +13,41 @@ from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_json, get_serial_rainsensor, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
-from store_data import store_sky_data
+from store_data import store_sky_data, setup_database
 from app_logging import setup_logger
 from rain_alarm import check_rain_alert
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings
 
-# Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
-Relay_Ch1 = 26  # Fan
-Relay_Ch2 = 20  # Dew Heater
-# Relay_Ch3 = 21  # Available for future use
-GPIO.setwarnings(False)     # Set GPIO warnings to false (optional, to avoid nuisance warnings)
-GPIO.setmode(GPIO.BCM)
-GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
+if GPIO:
+    # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
+    Relay_Ch1 = 26  # Fan
+    Relay_Ch2 = 20  # Dew Heater
+    # Relay_Ch3 = 21  # Available for future use
+    GPIO.setwarnings(False)     # Set GPIO warnings to false (optional, to avoid nuisance warnings)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 
 def control_fan_heater():
     # Function to control fan and heater and store data
+    print("controlling fan heater")
     global settings
     temp_hum_url = settings["temp_hum_url"]
     settings = load_settings()  # Refresh settings on each call
     if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
+        print(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
         logger.error(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
     temperature, humidity = get_temperature_humidity(temp_hum_url)
-    serial_data = get_serial_json(settings["serial_port"], settings["baud_rate"])
-    raining = get_serial_rainsensor("/dev/ttyUSB1", settings["baud_rate"])
-    logger.info("raining: ", raining)
+
+    raining = get_serial_rainsensor(settings["serial_port_rain"], settings["baud_rate"])
+    print(f"raining: {raining}")
+    logger.info(f"raining: {raining}")
+
     check_rain_alert(raining);
+    serial_data = get_serial_json(settings["serial_port_json"], settings["baud_rate"])
+    print("serial data: ", serial_data)
 
     cpu_temperature = get_cpu_temperature()
     memory_usage = get_memory_usage()
@@ -46,7 +57,7 @@ def control_fan_heater():
         dewPoint = round(calculate_dewPoint(temperature, humidity), 2)
         temp=Temp(temperature, 'c')
         # dewPoint = round(dew_point(temp, humidity).c, 1)
-        logger.info("dew_point: ", dewPoint)
+        logger.info(f"dew_point: {dewPoint}")
         heatIndex = round(heat_index(temp, humidity).c, 1)
         fan_status = "ON" if (
             temperature > settings["ambient_temp_threshold"] 
@@ -55,8 +66,9 @@ def control_fan_heater():
             or memory_usage > settings["memory_usage_threshold"]
         ) else "OFF"
         heater_status = "ON" if temperature <= (dewPoint + settings["dewpoint_threshold"]) else "OFF"
-        GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
-        GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
+        if GPIO:
+            GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
+            GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
 
         # Get other data, calculate values
         ambient_temperature = round(temperature, 1)
@@ -92,10 +104,12 @@ def control_fan_heater():
         conn.close()
 
 # Schedule to check temperature and humidity every 10 minutes
+control_fan_heater()
 schedule.every(settings["interval_time"]).seconds.do(control_fan_heater)
 logger.info("Setup complete, running automated tasks.")
 
 if __name__ == '__main__':
+    setup_database()
     try:
         while True:
             schedule.run_pending()
@@ -103,5 +117,6 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
     finally:
-        GPIO.cleanup()
+        if GPIO:
+            GPIO.cleanup()
         logger.info("GPIO cleanup executed")

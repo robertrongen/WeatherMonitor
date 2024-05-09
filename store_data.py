@@ -8,14 +8,14 @@ logger = setup_logger('store_data', 'store_data.log')
 DATABASE_NAME = "sky_data.db"
 
 def setup_database(conn=None):
+    print("setting up database")
     if conn is None:
         conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
 
-    # Correctly define the CREATE TABLE SQL with proper data types and comma separations
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sky_data (
-            timestamp DATETIME PRIMARY KEY,
+            timestamp DATETIME PRIMARY KEY DEFAULT CURRENT_TIMESTAMP,
             temperature REAL,
             humidity REAL,
             dew_point REAL,
@@ -23,11 +23,12 @@ def setup_database(conn=None):
             fan_status TEXT,
             heater_status TEXT,
             cpu_temperature REAL,
-            raining TEXT,
+            raining REAL,
             light REAL,
             sky_temperature REAL,
             ambient_temperature REAL,
             sqm_ir INTEGER,
+            sqm_full REAL,
             sqm_visible INTEGER,
             sqm_lux REAL,
             cloud_coverage REAL,
@@ -38,11 +39,13 @@ def setup_database(conn=None):
     """)
 
     conn.commit()
-    # conn.close()
+    conn.close()
 
-def store_sky_data(data, conn):
+def store_sky_data(data, conn=None):
+    print(f"Attempting to store data: {data}")
     logger.info(f"Attempting to store data: {data}")
-    # conn = sqlite3.connect(DATABASE_NAME)
+    if conn is None:
+        conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -94,6 +97,8 @@ def store_sky_data(data, conn):
         logger.info("Data stored successfully")
     except Exception as e:
         logger.critical(f"Failed to store data: {e}")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     setup_database()  # Set up the database once at the start

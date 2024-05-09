@@ -11,7 +11,8 @@ def load_settings():
         "interval_time": 300,  # seconds
         "sleep_time": 60,  # seconds
         "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-        "serial_port": "/dev/ttyUSB0",
+        "serial_port_rain": "/dev/ttyUSB1",
+        "serial_port_json": "/dev/ttyUSB0",
         "baud_rate": 115200
     }
 

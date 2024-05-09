@@ -96,10 +96,18 @@
             </div>
             <div class="row mb-3">
                 <div class="col-sm-4">
-                    <label for="serial_port" class="form-label">Serial Port:</label>
+                    <label for="serial_port" class="form-label">Serial Port Rain Sensor:</label>
                 </div>
                 <div class="col-sm-8">
-                    <input type="text" name="serial_port" value="{{ settings['serial_port'] }}" class="form-control">
+                    <input type="text" name="serial_port_rain" value="{{ settings['serial_port_rain'] }}" class="form-control">
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-sm-4">
+                    <label for="serial_port" class="form-label">Serial Port JSON file:</label>
+                </div>
+                <div class="col-sm-8">
+                    <input type="text" name="serial_port_json" value="{{ settings['serial_port_json'] }}" class="form-control">
                 </div>
             </div>
             <div class="row mb-3">
