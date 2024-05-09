@@ -34,7 +34,7 @@ def control_fan_heater():
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
     temperature, humidity = get_temperature_humidity(temp_hum_url)
     serial_data = get_serial_json(settings["serial_port"], settings["baud_rate"])
-    raining = get_serial_rainsensor(settings["serial_port"], settings["baud_rate"])
+    raining = get_serial_rainsensor("/dev/ttyUSB1", settings["baud_rate"])
     logger.info("raining: ", raining)
     check_rain_alert(raining);
 
