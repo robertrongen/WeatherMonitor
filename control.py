@@ -7,7 +7,6 @@ except (ImportError, RuntimeError):
     print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
     GPIO = None
 import time
-import sqlite3
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_serial_json, get_serial_rainsensor, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint

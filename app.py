@@ -30,6 +30,26 @@ def utc_to_cet(utc_str):
     cet_dt = utc_zone.localize(utc_dt).astimezone(cet_zone)
     return cet_dt.strftime('%Y-%m-%d %H:%M:%S')
 
+def get_latest_data():
+    """Retrieve the latest data from the database."""
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 25')
+        rows = c.fetchall()
+        # Convert rows to list of dicts to ensure JSON serializability
+        rows_list = [dict(row) for row in rows]
+        # timestamps = [row['timestamp'] for row in rows_list]  # Extracting timestamps as normal
+        # Convert UTC timestamps to CET/CEST for display
+        for row in rows_list:
+            row['timestamp'] = utc_to_cet(row['timestamp'])
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error fetching or converting data: {e}")
+        return []
+    finally:
+        conn.close()
+
 def read_log_file(path):
     try:
         with open(path, 'r') as file:
@@ -54,21 +74,40 @@ def disable_alert():
 
 @app.route('/')
 def index():
+    rows_list = get_latest_data()
+    if rows_list:
+        return render_template('index.html', data=rows_list, alert_active=alert_active)
+    else:
+        return jsonify({"error": "Error fetching rows_list"}), 500
+
+@app.route('/data')
+def serial_data():
+    """API endpoint to fetch data."""
+    data = get_latest_data()
+    if data:
+        return jsonify(data)
+    else:
+        return jsonify({"error": "Error fetching data"}), 500
+
+@app.route('/load-more')
+def load_more():
     conn = get_db_connection()
-    try:
-        rows = conn.execute('SELECT * FROM sky_data ORDER BY timestamp DESC').fetchall()
-        # Convert rows to list of dicts to ensure JSON serializability
-        rows_list = [dict(row) for row in rows]
-        # timestamps = [row['timestamp'] for row in rows_list]  # Extracting timestamps as normal
-        # Convert UTC timestamps to CET/CEST for display
-        for row in rows_list:
-            row['timestamp'] = utc_to_cet(row['timestamp'])
-    finally:
-        conn.close()
+    c = conn.cursor()
+    c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 100 OFFSET 10')  # Adjust OFFSET based on initial data load
+    data = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify(data)
 
-    # return render_template('index.html', data=rows_list, timestamps=json.dumps(timestamps))
-    return render_template('index.html', data=rows_list, alert_active=alert_active)
+def notify_new_data():
+    """Function to emit new data to all connected clients."""
+    data = get_latest_data()
+    if data:
+        socketio.emit('new_data', {'data': data}, namespace='/data')
+    else:
+        print("Error: No data available to send.")
 
+if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
 @app.route('/settings', methods=['GET', 'POST'])
 def settings_page():
     settings = load_settings()
@@ -102,32 +141,6 @@ def settings_page():
 def dashboard():
     return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
 
-@app.route('/data')
-def serial_data():
-    conn = get_db_connection()
-    try:
-        c = conn.cursor()
-        c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 25')
-        rows = c.fetchall()
-        print("Fetched rows:", rows)  # Debug print to check what's being fetched
-        # Convert rows to dictionaries if row factory is set correctly
-        data = [dict(row) for row in rows]
-        return jsonify(data)
-    except Exception as e:
-        print(f"Error fetching or converting data: {e}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-@app.route('/load-more')
-def load_more():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 100 OFFSET 10')  # Adjust OFFSET based on initial data load
-    data = [dict(row) for row in c.fetchall()]
-    conn.close()
-    return jsonify(data)
-
 @app.route('/logs/<string:log_name>')
 def show_logs(log_name):
     log_path = {
@@ -141,20 +154,6 @@ def show_logs(log_name):
     else:
         abort(403)  # Abort if the log path is not recognized or not readable
 
-@app.route('/test')
-def index_test():
-    try:
-        rows = [
-            {'timestamp': '2021-01-01', 'cloud_coverage_indicator': 10},
-            {'timestamp': '2021-01-02', 'cloud_coverage_indicator': 20},
-        ]
-        timestamps = [row['timestamp'] for row in rows]
-    except Exception as e:
-        rows = []
-        timestamps = []
-        print(f"Error fetching data: {e}")
-    return render_template('index_test.html', data=rows, timestamps=json.dumps(timestamps))
-
 @socketio.on('connect')
 def test_connect():
     app.logger.info('Client connected')
@@ -163,10 +162,3 @@ def test_connect():
 def test_disconnect():
     app.logger.info('Client disconnected')
 
-def notify_new_data():
-    """Function to emit new data to all connected clients."""
-    data = get_data()
-    socketio.emit('new_data', {'data': data}, namespace='/data')
-
-if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
