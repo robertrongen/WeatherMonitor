@@ -56,6 +56,7 @@ def get_serial_rainsensor(port, rate, num_samples=20, timeout=120):
                         if len(readings) == num_samples:
                             average_rain = mean(readings)
                             logger.info(f"Average rain intensity: {average_rain}")
+                            print(f"average_rain = {average_rain}")
                             return average_rain
                     except ValueError:
                         logger.error("Failed to parse raining data")
