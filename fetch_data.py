@@ -22,18 +22,17 @@ def get_serial_json(port, rate, timeout=120):
                 if line:
                     try:
                         data = json.loads(line)
-                        print(f"Received valid JSON data: {line}")
+                        # print(f"Received valid JSON data: {line}")
                         logger.info(f"Received valid JSON data: {line}")
                         return data
                     except json.JSONDecodeError:
-                        print(f"Failed to decode JSON or no JSON: {line}, skipping line.")
                         logger.debug(f"Failed to decode JSON or no JSON: {line}, skipping line.")
                 time.sleep(2)
     except serial.serialutil.SerialException:
-        print("Serial port for json is busy, waiting...")
+        # print("Serial port for json is busy, waiting...")
         logger.info("Serial port for json is busy, waiting...")
         time.sleep(10)  # Wait a bit before trying to access the port again
-    print("Timeout reached without receiving valid JSON data.")
+    # print("Timeout reached without receiving valid JSON data.")
     logger.error("Timeout reached without receiving valid JSON data.")
     return None
 
@@ -48,7 +47,7 @@ def get_serial_rainsensor(port, rate, num_samples=10, timeout=120):
         with serial.Serial(port, rate, timeout=1) as ser:
             while time.time() < end_time and len(readings) < num_samples:
                 line = ser.readline().decode('utf-8').strip()
-                print(f"line (rain) = {line}")
+                # print(f"line (rain) = {line}")
                 if "Rainsensor," in line:
                     try:
                         _, value = line.split(',')
@@ -56,13 +55,13 @@ def get_serial_rainsensor(port, rate, num_samples=10, timeout=120):
                         if len(readings) == num_samples:
                             average_rain = mean(readings)
                             logger.info(f"Average rain intensity: {average_rain}")
-                            print(f"average_rain = {average_rain}")
+                            # print(f"average_rain = {average_rain}")
                             return average_rain
                     except ValueError:
                         logger.error("Failed to parse raining data")
                 time.sleep(2)
     except serial.serialutil.SerialException:
-        print("Serial port for rain is busy, waiting...")
+        # print("Serial port for rain is busy, waiting...")
         logger.info("Serial port for rain is busy, waiting...")
         time.sleep(10)  # Wait before trying again
     print("Timeout reached or insufficient rain data for average calculation.")
@@ -106,7 +105,7 @@ def get_cpu_temperature():
             temp = f.read()
         return round(float(temp) / 1000, 2)  # Convert millidegree Celsius to degree Celsius
     except Exception as e:
-        print(f"Failed to fetch CPU temperature: {e}")
+        logger.warning(f"Failed to fetch CPU temperature: {e}")
         return None
 
 def get_cpu_usage():
@@ -117,7 +116,7 @@ def get_cpu_usage():
     try:
         return psutil.cpu_percent(interval=1)
     except Exception as e:
-        print(f"Failed to fetch CPU usage: {e}")
+        logger.warning(f"Failed to fetch CPU usage: {e}")
         return None
 
 def get_memory_usage():
@@ -129,7 +128,7 @@ def get_memory_usage():
         memory = psutil.virtual_memory()
         return memory.percent
     except Exception as e:
-        print(f"Failed to fetch memory usage: {e}")
+        logger.warning(f"Failed to fetch memory usage: {e}")
         return None
 
 def get_disk_usage():
@@ -141,5 +140,5 @@ def get_disk_usage():
         partition = psutil.disk_usage('/')
         return partition.percent
     except Exception as e:
-        print(f"Failed to fetch disk usage: {e}")
+        logger.warning(f"Failed to fetch disk usage: {e}")
         return None
