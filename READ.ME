@@ -67,6 +67,15 @@ On RPi:
 ### On development laptop: 
 - Use `python3 serial_test_data.py` to generate serial data and follow port setting instruction
 ### On RPi (remote session):
+Activate venv with 
+- `source ~/github/skymonitor/venv/bin/activate`
+
+Configure Geany to Use the Virtual Environment’s Interpreter:
+- Open Geany, Navigate to Build → Set Build Commands
+- Under the Execute commands, you need to modify the command line to use the Python interpreter from your virtual environment.
+Replace the default Python command (usually something like python "%f") with the path to the Python interpreter in your virtual environment:
+`~/github/skymonitor/venv/bin/python "%f"`
+
 Check log files using `cat control.log` in ~\github\skymonitor
 - control.log 
 - app.log 
