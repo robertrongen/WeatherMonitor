@@ -37,7 +37,7 @@ def get_serial_json(port, rate, timeout=120):
     logger.error("Timeout reached without receiving valid JSON data.")
     return None
 
-def get_serial_rainsensor(port, rate, num_samples=20, timeout=120):
+def get_serial_rainsensor(port, rate, num_samples=10, timeout=120):
     """
     Reads multiple rain sensor data samples from the serial port and returns the average.
     Waits until enough samples are collected or the timeout expires.
