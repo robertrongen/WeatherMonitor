@@ -11,7 +11,6 @@ from datetime import datetime
 from settings import load_settings
 
 app = Flask(__name__)
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 load_dotenv()
 app.secret_key = os.getenv('SESSION_KEY')
 app.config["SESSION_TYPE"] = "filesystem"
