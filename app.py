@@ -1,14 +1,13 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from flask_session import Session
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 import sqlite3
 import json
 import os
 import pytz
-import redis
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime
 from settings import load_settings
 
 app = Flask(__name__)
