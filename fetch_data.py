@@ -40,35 +40,36 @@ def get_serial_json(port, rate, timeout=120):
     logger.error("Timeout reached or insufficient rain data for average calculation.")
     return None
 
-def get_serial_rainsensor(port, rate, num_samples=10, timeout=120):
+def get_serial_rainsensor(port, rate, num_samples=10, timeout=120, retry_delay=10):
     """
     Reads multiple rain sensor data samples from the serial port and returns the average.
     Waits until enough samples are collected or the timeout expires.
+    Retries if the serial port is busy.
     """
     end_time = time.time() + timeout
     readings = []
-    try:
-        with serial.Serial(port, rate, timeout=1) as ser:
-            while time.time() < end_time and len(readings) < num_samples:
-                line = ser.readline().decode('utf-8').strip()
-                # print(f"line (rain) = {line}")
-                if "Rainsensor," in line:
-                    try:
-                        _, value = line.split(',')
-                        readings.append(float(value))
-                        if len(readings) == num_samples:
-                            average_rain = mean(readings)
-                            logger.info(f"Average rain intensity: {average_rain}")
-                            # print(f"average_rain = {average_rain}")
-                            return average_rain
-                    except ValueError:
-                        logger.error("Failed to parse raining data")
-                time.sleep(2)
-    except serial.serialutil.SerialException:
-        # print("Serial port for rain is busy, waiting...")
-        logger.info("Serial port for rain is busy, waiting...")
-        time.sleep(10)  # Wait before trying again
-    print("Timeout reached or insufficient rain data for average calculation.")
+
+    while time.time() < end_time:
+        try:
+            with serial.Serial(port, rate, timeout=1) as ser:
+                while time.time() < end_time and len(readings) < num_samples:
+                    line = ser.readline().decode('utf-8').strip()
+                    if "Rainsensor," in line:
+                        try:
+                            _, value = line.split(',')
+                            readings.append(float(value))
+                            if len(readings) == num_samples:
+                                average_rain = mean(readings)
+                                logger.info(f"Average rain intensity: {average_rain}")
+                                return average_rain
+                        except ValueError:
+                            logger.error("Failed to parse raining data")
+                    time.sleep(2)
+        except serial.serialutil.SerialException:
+            logger.info("Serial port for rain is busy, waiting for retry...")
+            time.sleep(retry_delay) 
+            continue  
+
     logger.error("Timeout reached or insufficient rain data for average calculation.")
     return None
 
