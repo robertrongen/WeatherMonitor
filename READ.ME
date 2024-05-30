@@ -5,7 +5,7 @@ Create and fill in .env keys using example.env for:
 - Email 
 - SESSION_KEY: Create Web session key:
   `python -c 'import os; print(os.urandom(24).hex())'`
-## Activate virtual env for Python (venv)
+  ## Activate virtual env for Python (venv)
 - Create a new virtual environment
 `python3 -m venv venv`
 - Activate the new environment
@@ -85,5 +85,5 @@ Check log files using `cat control.log` in ~\github\skymonitor
 - rain.log
 
 check journal:
-- sudo journalctl -u control.service
-- sudo journalctl -u app.service 
+- sudo journalctl -u control.service -S today
+- sudo journalctl -u app.service -S today

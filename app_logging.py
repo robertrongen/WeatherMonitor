@@ -1,31 +1,31 @@
 import logging
 import logging.handlers
-import os
+# import os
 import sys
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 # Now you can use os.getenv to access your variables
-email_host = os.getenv('EMAIL_HOST')
-email_port = int(os.getenv('EMAIL_PORT'))  # Convert port to int
-email_username = os.getenv('EMAIL_USERNAME')
-email_password = os.getenv('EMAIL_PASSWORD')
-slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+# email_host = os.getenv('EMAIL_HOST')
+# email_port = int(os.getenv('EMAIL_PORT'))  # Convert port to int
+# email_username = os.getenv('EMAIL_USERNAME')
+# email_password = os.getenv('EMAIL_PASSWORD')
+# slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
 
-def setup_email_logging(logger):
-    mail_handler = logging.handlers.SMTPHandler(
-        mailhost=(email_host, email_port),
-        fromaddr=f"{email_username}",
-        toaddrs=["rongen.robert@gmail.com"],
-        subject="Critical Error Logged",
-        credentials=(email_username, email_password),
-        secure=()
-    )
-    mail_handler.setLevel(logging.ERROR)
-    mail_handler.setFormatter(logging.Formatter("Critical error in %(name)s: %(message)s"))
-    logger.addHandler(mail_handler)
+# def setup_email_logging(logger):
+#     mail_handler = logging.handlers.SMTPHandler(
+#         mailhost=(email_host, email_port),
+#         fromaddr=f"{email_username}",
+#         toaddrs=["rongen.robert@gmail.com"],
+#         subject="Critical Error Logged",
+#         credentials=(email_username, email_password),
+#         secure=()
+#     )
+#     mail_handler.setLevel(logging.ERROR)
+#     mail_handler.setFormatter(logging.Formatter("Critical error in %(name)s: %(message)s"))
+#     logger.addHandler(mail_handler)
 
 def setup_logger(name, log_file, level=logging.INFO):
     logger = logging.getLogger(name)
@@ -44,7 +44,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.addHandler(console_handler)
 
     # Email and Slack handlers
-    setup_email_logging(logger)
+    # setup_email_logging(logger)
     # slack_handler = SlackHandler()
     # slack_handler.setLevel(logging.ERROR)
     # logger.addHandler(slack_handler)
