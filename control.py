@@ -37,49 +37,50 @@ def control_fan_heater():
     data = {}
 
     if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
-        print(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
-        logger.error(f"Invalid URL passed: {temp_hum_url}, using to default url instead")
+        print(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
+        logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
 
     try:
         temperature, humidity = get_temperature_humidity(temp_hum_url)
-        data["temperature"] = round(temperature, 1) if temperature is not None else None
-        data["humidity"] = round(humidity, 1) if humidity is not None else None
+        if temperature is not None:
+            data["temperature"] = round(temperature, 1)
+        if humidity is not None:
+            data["humidity"] = round(humidity, 1)
     except Exception as e:
         logger.error(f"Failed to fetch temperature and humidity: {e}")
 
     try:
         raining = get_serial_rainsensor(settings["serial_port_rain"], settings["baud_rate"])
-        print(f"average rain: {raining}")
         logger.info(f"average rain: {raining}")
         check_rain_alert(raining)
-        data["raining"] = raining
+        if raining is not None:
+            data["raining"] = raining
     except Exception as e:
         logger.error(f"Failed to fetch rain sensor data: {e}")
 
     try:
         serial_data = get_serial_json(settings["serial_port_json"], settings["baud_rate"])
-        print("serial data: ", serial_data)
         data.update(serial_data)
     except Exception as e:
         logger.error(f"Failed to fetch serial JSON data: {e}")
 
     try:
         cpu_temperature = get_cpu_temperature()
-        data["cpu_temperature"] = round(cpu_temperature, 0) if cpu_temperature is not None else None
+        if cpu_temperature is not None:
+            data["cpu_temperature"] = round(cpu_temperature, 0)
     except Exception as e:
         logger.error(f"Failed to fetch CPU temperature: {e}")
 
     try:
         memory_usage = get_memory_usage()
-        data["memory_usage"] = memory_usage if memory_usage is not None else None
+        if memory_usage is not None:
+            data["memory_usage"] = memory_usage
     except Exception as e:
         logger.error(f"Failed to fetch memory usage: {e}")
 
-    if temperature and humidity and serial_data:
-        # Control fan and heater
+    if "temperature" in data and "humidity" in data:
         try:
-            # dewPoint = round(dew_point(temp, humidity).c, 1)
             dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
             temp = Temp(data["temperature"], 'c')
             heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
@@ -89,14 +90,18 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to compute dew point or heat index: {e}")
 
-    fan_status = "ON" if (
-        temperature > settings["ambient_temp_threshold"] 
-        or temperature <= dewPoint + settings["dewpoint_threshold"]
-        or cpu_temperature > settings["cpu_temp_threshold"]
-        or memory_usage > settings["memory_usage_threshold"]
-    ) else "OFF"
+    fan_status = "OFF"
+    heater_status = "OFF"
+    
+    if "temperature" in data:
+        fan_status = "ON" if (
+            data["temperature"] > settings["ambient_temp_threshold"]
+            or data["temperature"] <= data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
+            or data.get("cpu_temperature", 0) > settings["cpu_temp_threshold"]
+            or data.get("memory_usage", 0) > settings["memory_usage_threshold"]
+        ) else "OFF"
 
-    heater_status = "ON" if temperature <= (dewPoint + settings["dewpoint_threshold"]) else "OFF"
+        heater_status = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
 
     if GPIO:
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
@@ -117,15 +122,13 @@ def control_fan_heater():
         logger.error(f"Failed to calculate additional indicators: {e}")
 
     # store data
-    print("storing data", data)
+    logger.info("Storing data: %s", data)
     conn = get_db_connection()
     try:
-        logger.debug("Storing data: %s", data)
         store_sky_data(data, conn)
         notify_new_data()
     finally:
         conn.close()
-
 
 if __name__ == '__main__':
     setup_database()
