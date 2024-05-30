@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 # from dotenv import load_dotenv
