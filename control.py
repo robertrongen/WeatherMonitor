@@ -89,41 +89,41 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to compute dew point or heat index: {e}")
 
-        fan_status = "ON" if (
-            temperature > settings["ambient_temp_threshold"] 
-            or temperature <= dewPoint + settings["dewpoint_threshold"]
-            or cpu_temperature > settings["cpu_temp_threshold"]
-            or memory_usage > settings["memory_usage_threshold"]
-        ) else "OFF"
+    fan_status = "ON" if (
+        temperature > settings["ambient_temp_threshold"] 
+        or temperature <= dewPoint + settings["dewpoint_threshold"]
+        or cpu_temperature > settings["cpu_temp_threshold"]
+        or memory_usage > settings["memory_usage_threshold"]
+    ) else "OFF"
 
-        heater_status = "ON" if temperature <= (dewPoint + settings["dewpoint_threshold"]) else "OFF"
+    heater_status = "ON" if temperature <= (dewPoint + settings["dewpoint_threshold"]) else "OFF"
 
-        if GPIO:
-            GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
-            GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
+    if GPIO:
+        GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
+        GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
 
-        # Get other data, calculate values
-        try:
-            if "temperature" in data or "humidity" in data or "dew_point" in data:
-                ambient_temperature = data.get("temperature")
-                sky_temperature = round(float(data.get('sky_temperature')), 1) if data.get('sky_temperature') else None
-                sqm_lux = round(float(data.get('sqm_lux')), 2) if data.get('sqm_lux') else None
-                cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(ambient_temperature, sky_temperature, sqm_lux)
-                data["cloud_coverage"] = round(cloud_coverage, 2) if cloud_coverage is not None else None
-                data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 1) if cloud_coverage_indicator is not None else None
-                data["brightness"] = round(brightness, 1) if brightness is not None else None
-                data["bortle"] = round(bortle, 1) if bortle is not None else None
-        except Exception as e:
-            logger.error(f"Failed to calculate additional indicators: {e}")
+    # Get other data, calculate values
+    try:
+        if "temperature" in data or "humidity" in data or "dew_point" in data:
+            ambient_temperature = data.get("temperature")
+            sky_temperature = round(float(data.get('sky_temperature')), 1) if data.get('sky_temperature') else None
+            sqm_lux = round(float(data.get('sqm_lux')), 2) if data.get('sqm_lux') else None
+            cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(ambient_temperature, sky_temperature, sqm_lux)
+            data["cloud_coverage"] = round(cloud_coverage, 2) if cloud_coverage is not None else None
+            data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 1) if cloud_coverage_indicator is not None else None
+            data["brightness"] = round(brightness, 1) if brightness is not None else None
+            data["bortle"] = round(bortle, 1) if bortle is not None else None
+    except Exception as e:
+        logger.error(f"Failed to calculate additional indicators: {e}")
 
-        # store data
-        conn = get_db_connection()
-        try:
-            logger.debug("Storing data: %s", data)
-            store_sky_data(data, conn)
-            notify_new_data()
-        finally:
-            conn.close()
+    # store data
+    conn = get_db_connection()
+    try:
+        logger.debug("Storing data: %s", data)
+        store_sky_data(data, conn)
+        notify_new_data()
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
