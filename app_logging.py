@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 # from dotenv import load_dotenv
@@ -38,6 +37,7 @@ def setup_logger(name, log_file, level=logging.INFO):
         os.makedirs(log_directory)
     # Construct the full log file path
     log_file_path = os.path.join(log_directory, log_file)
+    print(f"Logging to: {log_file_path}")
 
     # File handler
     file_handler = RotatingFileHandler(log_file_path, maxBytes=1048576, backupCount=5)
