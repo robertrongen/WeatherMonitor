@@ -15,29 +15,25 @@ def get_serial_json(port, rate, timeout=120):
     Fetches JSON data from a serial device. Waits until a valid JSON is found or the timeout expires.
     """
     end_time = time.time() + timeout
-    readings = []
-
-    while time.time() < end_time:
-        try:
-            with serial.Serial(port, rate, timeout=1) as ser:
-                while time.time() < end_time and len(readings) < num_samples:
-                    line = ser.readline().decode('utf-8').strip()
-                    if "Rainsensor," in line:
-                        try:
-                            _, value = line.split(',')
-                            readings.append(float(value))
-                            if len(readings) == num_samples:
-                                average_rain = mean(readings)
-                                logger.info(f"Average rain intensity: {average_rain}")
-                                return average_rain
-                        except ValueError:
-                            logger.error("Failed to parse raining data")
-                    time.sleep(2)
-        except serial.serialutil.SerialException:
-            logger.info("Serial port for rain is busy, waiting...")
-            time.sleep(retry_delay)
-
-    logger.error("Timeout reached or insufficient rain data for average calculation.")
+    try:
+        with serial.Serial(port, rate, timeout=1) as ser:
+            while time.time() < end_time:
+                line = ser.readline().decode('utf-8').strip()
+                if line:
+                    try:
+                        data = json.loads(line)
+                        # print(f"Received valid JSON data: {line}")
+                        logger.info(f"Received valid JSON data: {line}")
+                        return data
+                    except json.JSONDecodeError:
+                        logger.debug(f"Failed to decode JSON or no JSON: {line}, skipping line.")
+                time.sleep(2)
+    except serial.serialutil.SerialException:
+        # print("Serial port for json is busy, waiting...")
+        logger.info("Serial port for json is busy, waiting...")
+        time.sleep(10)  # Wait a bit before trying to access the port again
+    # print("Timeout reached without receiving valid JSON data.")
+    logger.error("Timeout reached without receiving valid JSON data.")
     return None
 
 def get_serial_rainsensor(port, rate, num_samples=10, timeout=120, retry_delay=10):
@@ -67,8 +63,8 @@ def get_serial_rainsensor(port, rate, num_samples=10, timeout=120, retry_delay=1
                     time.sleep(2)
         except serial.serialutil.SerialException:
             logger.info("Serial port for rain is busy, waiting for retry...")
-            time.sleep(retry_delay) 
-            continue  
+            time.sleep(retry_delay)  # Wait before trying again
+            continue  # Retry after waiting
 
     logger.error("Timeout reached or insufficient rain data for average calculation.")
     return None
