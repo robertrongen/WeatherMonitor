@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
-# import os
+from logging.handlers import RotatingFileHandler
+import os
 import sys
 # from dotenv import load_dotenv
 
@@ -31,8 +32,15 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    # Ensure the /log directory exists
+    log_directory = "/log"
+    if not os.path.exists(log_directory):
+        os.makedirs(log_directory)
+    # Construct the full log file path
+    log_file_path = os.path.join(log_directory, log_file)
+
     # File handler
-    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=1048576, backupCount=5)
+    file_handler = RotatingFileHandler(log_file_path, maxBytes=1048576, backupCount=5)
     file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
@@ -42,7 +50,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
-
+    
     # Email and Slack handlers
     # setup_email_logging(logger)
     # slack_handler = SlackHandler()
