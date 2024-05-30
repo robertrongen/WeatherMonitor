@@ -33,7 +33,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.setLevel(level)
 
     # Ensure the /log directory exists
-    log_directory = "/log"
+    log_directory = "/home/robert/github/skymonitor/log"
     if not os.path.exists(log_directory):
         os.makedirs(log_directory)
     # Construct the full log file path
