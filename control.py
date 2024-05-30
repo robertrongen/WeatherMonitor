@@ -102,6 +102,9 @@ def control_fan_heater():
         ) else "OFF"
 
         heater_status = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
+        
+    data["fan_status"] = fan_status
+    data["heater_status"] = heater_status
 
     if GPIO:
         GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
