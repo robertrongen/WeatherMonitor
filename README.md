@@ -2,7 +2,6 @@
 ## Add .env variables
 Create and fill in .env keys using example.env for:
 - OpenWeatherMap api and app keys (https://openweathermap.org/api)
-- Email 
 - SESSION_KEY: Create Web session key:
   `python -c 'import os; print(os.urandom(24).hex())'`
   ## Activate virtual env for Python (venv)
@@ -20,20 +19,17 @@ Create and fill in .env keys using example.env for:
 - Deactivate the current environment
 `deactivate`
 - Remove the current virtual environment folder
-`rm -r venv
-`
+`rm -r venv`
 ## Define services
 For:
 - app.py - runs flask webserver for / and /settings with dns to skymonitor.local
 - control.py - control_fan_heater(), get and store sensor data according schedule, control fan and dewheater, calls rain_alarm
-
 Create:
 1. Create service: `sudo nano /etc/systemd/system/app.service`
 2. Reload systemd: `sudo systemctl daemon-reload`
 3. Enable the service: `sudo systemctl enable app.service`
 4. Start the service: `sudo systemctl start app.service`
 5. Check status: `sudo systemctl status app.service`
-
 ```
 [Unit]
 Description=Skymonitor Control Service
@@ -54,11 +50,9 @@ WantedBy=multi-user.target
 ## Code update procedure
 On RPi:
 1. `git commit -a` & `git push` "settings.json" from RPi
-
 On development laptop:
 2. Update and test code
 3. `git commit -a` & `git push` the updates 
-
 On RPi:
 4. `git pull `
 5. `sudo systemctl restart app`
@@ -67,9 +61,7 @@ On RPi:
 ### On development laptop: 
 - Use `python3 serial_test_data.py` to generate serial data and follow port setting instruction
 ### On RPi (remote session):
-Activate venv with 
-- `source ~/github/skymonitor/venv/bin/activate`
-
+Activate venv with - `source ~/github/skymonitor/venv/bin/activate`
 Configure Geany to Use the Virtual Environment’s Interpreter:
 - Open Geany, Navigate to Build → Set Build Commands
 - Under the Execute commands, you need to modify the command line to use the Python interpreter from your virtual environment.
@@ -83,7 +75,6 @@ Check log files using `cat control.log` in ~\github\skymonitor
 - store_data.log
 - database_operations.log
 - rain.log
-
 check journal:
 - sudo journalctl -u control.service -S today
 - sudo journalctl -u app.service -S today
