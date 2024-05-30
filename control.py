@@ -117,6 +117,7 @@ def control_fan_heater():
         logger.error(f"Failed to calculate additional indicators: {e}")
 
     # store data
+    print("storing data", data)
     conn = get_db_connection()
     try:
         logger.debug("Storing data: %s", data)

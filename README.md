@@ -68,7 +68,7 @@ Configure Geany to Use the Virtual Environment’s Interpreter:
 Replace the default Python command (usually something like python "%f") with the path to the Python interpreter in your virtual environment:
 `~/github/skymonitor/venv/bin/python "%f"`
 
-Check log files using `cat control.log` in ~\github\skymonitor
+Check log files using `cat control.log` in ~\github\skymonitor\log
 - control.log 
 - app.log 
 - fetch_data.log 
@@ -78,3 +78,4 @@ Check log files using `cat control.log` in ~\github\skymonitor
 check journal:
 - sudo journalctl -u control.service -S today
 - sudo journalctl -u app.service -S today
+reset logs and journals with admin/reset_logs.sh
