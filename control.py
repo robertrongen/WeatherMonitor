@@ -34,7 +34,27 @@ def control_fan_heater():
     global settings
     temp_hum_url = settings["temp_hum_url"]
     settings = load_settings()  # Refresh settings on each call
-    data = {}
+    data = {
+        "temperature": None,
+        "humidity": None,
+        "dew_point": None,
+        "heat_index": None,
+        "fan_status": "OFF",
+        "heater_status": "OFF",
+        "cpu_temperature": None,
+        "raining": None,
+        "light": None,
+        "sky_temperature": None,
+        "ambient_temperature": None,
+        "sqm_ir": None,
+        "sqm_full": None,
+        "sqm_visible": None,
+        "sqm_lux": None,
+        "cloud_coverage": None,
+        "cloud_coverage_indicator": None,
+        "brightness": None,
+        "bortle": None
+    }
 
     if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
         print(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
@@ -102,7 +122,7 @@ def control_fan_heater():
         ) else "OFF"
 
         heater_status = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
-        
+
     data["fan_status"] = fan_status
     data["heater_status"] = heater_status
 
