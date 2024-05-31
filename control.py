@@ -81,7 +81,8 @@ def control_fan_heater():
 
     try:
         serial_data = get_serial_json(settings["serial_port_json"], settings["baud_rate"])
-        data.update(serial_data)
+        if serial_data:
+            data.update(serial_data)
     except Exception as e:
         logger.error(f"Failed to fetch serial JSON data: {e}")
 
@@ -99,7 +100,7 @@ def control_fan_heater():
     except Exception as e:
         logger.error(f"Failed to fetch memory usage: {e}")
 
-    if "temperature" in data and "humidity" in data:
+    if data["temperature"] is not None and data["humidity"] is not None:
         try:
             dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
             temp = Temp(data["temperature"], 'c')
@@ -110,29 +111,23 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to compute dew point or heat index: {e}")
 
-    fan_status = "OFF"
-    heater_status = "OFF"
-    
-    if "temperature" in data:
-        fan_status = "ON" if (
+    if data["temperature"] is not None:
+        data["fan_status"] = "ON" if (
             data["temperature"] > settings["ambient_temp_threshold"]
             or data["temperature"] <= data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
             or data.get("cpu_temperature", 0) > settings["cpu_temp_threshold"]
             or data.get("memory_usage", 0) > settings["memory_usage_threshold"]
         ) else "OFF"
 
-        heater_status = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
-
-    data["fan_status"] = fan_status
-    data["heater_status"] = heater_status
+        data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
 
     if GPIO:
-        GPIO.output(Relay_Ch1, GPIO.LOW if fan_status == "ON" else GPIO.HIGH)
-        GPIO.output(Relay_Ch2, GPIO.LOW if heater_status == "ON" else GPIO.HIGH)
+        GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+        GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
 
     # Get other data, calculate values
     try:
-        if "temperature" in data or "humidity" in data or "dew_point" in data:
+        if data["temperature"] is not None or data["humidity"] is not None or data["dew_point"] is not None:
             ambient_temperature = data.get("temperature")
             sky_temperature = round(float(data.get('sky_temperature')), 1) if data.get('sky_temperature') else None
             sqm_lux = round(float(data.get('sqm_lux')), 2) if data.get('sqm_lux') else None
