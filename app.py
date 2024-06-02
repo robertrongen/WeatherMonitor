@@ -98,7 +98,7 @@ def serial_data():
 def load_more():
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 1000 OFFSET 10')  # Adjust OFFSET based on initial data load
+    c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC')
     data = [dict(row) for row in c.fetchall()]
     conn.close()
     return jsonify(data)
