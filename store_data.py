@@ -35,6 +35,7 @@ def setup_database(conn=None):
             cloud_coverage_indicator REAL,
             brightness REAL,
             bortle REAL
+            wind REAL
         )
     """)
 
@@ -69,9 +70,10 @@ def store_sky_data(data, conn=None):
                 cloud_coverage, 
                 cloud_coverage_indicator, 
                 brightness, 
-                bortle
+                bortle,
+                wind
             )
-            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data['temperature'],
             data['humidity'],
@@ -91,7 +93,8 @@ def store_sky_data(data, conn=None):
             data['cloud_coverage'],
             data['cloud_coverage_indicator'],
             data['brightness'],
-            data['bortle']
+            data['bortle'],
+            data['wind']
         ))
         conn.commit()
         logger.info("Data stored successfully")

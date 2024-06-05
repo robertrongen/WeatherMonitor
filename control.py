@@ -8,7 +8,7 @@ except (ImportError, RuntimeError):
     GPIO = None
 import time
 from settings import load_settings
-from fetch_data import get_temperature_humidity, get_serial_json, get_serial_rainsensor, get_cpu_temperature, get_memory_usage
+from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp#, dew_point
 from store_data import store_sky_data, setup_database
@@ -53,7 +53,8 @@ def control_fan_heater():
         "cloud_coverage": None,
         "cloud_coverage_indicator": None,
         "brightness": None,
-        "bortle": None
+        "bortle": None,
+        "wind": None
     }
 
     if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
@@ -71,20 +72,23 @@ def control_fan_heater():
         logger.error(f"Failed to fetch temperature and humidity: {e}")
 
     try:
-        raining = get_serial_rainsensor(settings["serial_port_rain"], settings["baud_rate"])
-        logger.info(f"average rain: {raining}")
-        check_rain_alert(raining)
+        raining, wind = get_serial_sensor_data(settings["serial_port_rain"], settings["baud_rate"])
         if raining is not None:
+            logger.info(f"Average rain: {raining}")
+            check_rain_alert(raining)
             data["raining"] = raining
+        if wind is not None:
+            logger.info(f"Average wind: {wind}")
+            data["wind"] = wind
     except Exception as e:
-        logger.error(f"Failed to fetch rain sensor data: {e}")
+        logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
     try:
-        serial_data = get_serial_json(settings["serial_port_json"], settings["baud_rate"])
+        serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
         if serial_data:
             data.update(serial_data)
     except Exception as e:
-        logger.error(f"Failed to fetch serial JSON data: {e}")
+        logger.error(f"Failed to fetch sky sensor data: {e}")
 
     try:
         cpu_temperature = get_cpu_temperature()
