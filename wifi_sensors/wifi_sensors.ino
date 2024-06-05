@@ -33,10 +33,6 @@ Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // pass in a number for the senso
 uint16_t ir, full, Visible;
 float Lux;
 
-// Sensor data from Arduino Nano
-String lightSensor, raining;
-String nanoDataBuffer = "";
-
 // Collect data in JSON file
 DynamicJsonDocument doc(1024);
 
@@ -54,7 +50,6 @@ void setup() {
   customSerialPrintln("Serial of D1Mini connected");
   
   // Reserve memory for frequently updated strings to avoid fragmentation
-  nanoDataBuffer.reserve(200);
   skyTemp.reserve(30);
   ambientTemp.reserve(30);
 
@@ -108,9 +103,8 @@ void loop() {
     // Collect and update sensor data
     fetchSkyTemp();
     advancedRead();
-    fetchNanoData();
     generateSensorJson();
-    memoryMonitor(); // Check memory status
+    // memoryMonitor(); // Check memory status
   }
 
   // Continuous actions handled outside the timed block
@@ -119,12 +113,12 @@ void loop() {
   MDNS.update();
 }
 
-void memoryMonitor() {
-  customSerialPrint("Free heap: ");
-  customSerialPrintln(String(ESP.getFreeHeap()));
-  customSerialPrint("Stack space left: ");
-  customSerialPrintln(String(cont_get_free_stack(g_pcont)));
-}
+// void memoryMonitor() {
+//   customSerialPrint("Free heap: ");
+//   customSerialPrintln(String(ESP.getFreeHeap()));
+//   customSerialPrint("Stack space left: ");
+//   customSerialPrintln(String(cont_get_free_stack(g_pcont)));
+// }
 
 void handleRoot() {
   String html = "<html><head>";
@@ -142,31 +136,9 @@ void handleRoot() {
 
   html += "<h1>Safety monitor</h1>";
 
-  html += "<h2>Safety status</h2>";
-  html += "<table border='1'>";
-  html += "<tr><th>Sensor</th><th>Data</th></tr>"; // Table headers
-  String rainingColor = "#808080";
-  // Check if 'raining' is not empty and is numeric
-  if (!raining.isEmpty()) {
-      int rainSensorValue = raining.toInt(); // Convert the string value to an integer
-
-      // Determine the background color based on the sensor value
-      if (rainSensorValue < 100) {
-          rainingColor = "#FF0000"; // Red color for raining
-      } else {
-          rainingColor = "#008000"; // Green color for not raining
-      }
-  }
-  html += "<tr><td>Is it raining?</td><td style='background-color: " + rainingColor + ";'>" + raining + "</td></tr>";
-  html += "<tr><td>Is it cloudy?</td><td>tbd</td></tr>";
-  html += "<tr><td>Is it dark?</td><td>tbd</td></tr>";
-  html += "</table>";
-
   html += "<h2>Sensor data</h2>";
   html += "<table border='1'>";
   html += "<tr><th>Sensor</th><th>Data</th><th>Unit</th></tr>"; // Table headers
-  html += "<tr><td>Rain Sensor (from Nano)</td><td>" + raining + "</td><td>lx</td></tr>";
-  html += "<tr><td>SEN0390 Light Sensor (from Nano)</td><td>" + lightSensor + "</td><td>lx</td></tr>";
   html += "<tr><td>IR Sky Temp MLX90614</td><td>" + skyTemp + "</td><td>&#8451;</td></tr>";
   html += "<tr><td>Ambient Temperature MLX90614</td><td>" + ambientTemp + "</td><td>&#8451;</td></tr>";
   html += "<tr><td>TSL2591 IR spectrum</td><td>" + String(ir) + "</td><td>-</td></tr>";
@@ -244,10 +216,8 @@ void fetchSkyTemp() {
     therm.begin();
     delay(2000);
     if (!therm.isConnected()){
-      // Serial.println("Error connecting to MLX IR thermometer. Check wiring.");
       customSerialPrintln("Error connecting to MLX IR thermometer. Check wiring.");
     } else {
-      // Serial.println("MLX sensor IR Thermometer did connect.");
       therm.setUnit(TEMP_C); // Set the library's units to Celcius
       readSkyTemp();
     }
@@ -260,27 +230,7 @@ void readSkyTemp() {
     // They'll be floats, calculated out to the unit you set with setUnit().
     skyTemp = therm.object();
     ambientTemp = therm.ambient();
-    customSerialPrint("Sky Temp: " + String(therm.object(), 2));
-    customSerialPrint(" C");
-    customSerialPrint("    Ambient Temp: " + String(therm.ambient(), 2));
-    customSerialPrintln(" C");
   }
-}
-
-void fetchNanoData() {
-    while (Serial.available()) {
-        char c = Serial.read();
-        if (c == '\n') {
-            // Remove any trailing carriage return before processing
-            if (nanoDataBuffer.endsWith("\r")) {
-                nanoDataBuffer.remove(nanoDataBuffer.length() - 1);
-            }
-            processSerialData(nanoDataBuffer);
-            nanoDataBuffer = "";
-        } else if (c != '\r') {  // Ignore carriage return characters
-            nanoDataBuffer += c;
-        }
-    }
 }
 
 void processSerialData(const String& data) {
@@ -290,20 +240,6 @@ void processSerialData(const String& data) {
     String sensorID = data.substring(0, commaIndex);
     String sensorValue = data.substring(commaIndex + 1);
     sensorValue.trim();
-
-    if (sensorID == "LightSensor") {
-        // Handle LightSensor value
-        lightSensor = (sensorValue != "-1") ? sensorValue : "read_failed";
-    } else if (sensorID == "Rainsensor") {
-          raining = sensorValue; // Set raining to the numeric value if valid
-    }
-    printNanoData(sensorID, sensorValue);
-}
-
-void printNanoData(String sensor, String value) {
-  customSerialPrint(sensor);
-  customSerialPrint(": ");
-  customSerialPrintln(value);
 }
 
 void startWebserver() {
@@ -340,11 +276,6 @@ void startWebserver() {
 }
 
 void generateSensorJson() {
-  raining.trim();     
-  lightSensor.trim();     
-
-  doc["raining"] = raining;
-  doc["light"] = lightSensor;
   doc["sky_temperature"] = skyTemp;
   doc["ambient_temperature"] = ambientTemp;
   doc["sqm_ir"] = ir;
@@ -377,18 +308,11 @@ void handleNotFound() {
 // Configures the gain and integration time for the TSL2591
 void configureSensor(void) {
   // You can change the gain on the fly, to adapt to brighter/dimmer light situations
-  //tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
-  // tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
-  tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
+  tsl.setGain(TSL2591_GAIN_HIGH);   // gain level: HIGH = 428x, MED = 25x, LOW = 1x gain
   
   // Changing the integration time gives you a longer time over which to sense light
   // longer timelines are slower, but are good in very low light situtations!
-  //tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // shortest integration time (bright light)
-  // tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
-  // tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
-  // tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
   tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
-  // tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
 
   // Display the gain and integration time for reference sake  
   customSerialPrintln(F("------------------------------------"));
@@ -425,11 +349,6 @@ void advancedRead(void) {
   full = lum & 0xFFFF;
   Visible = full - ir;
   Lux = tsl.calculateLux(full, ir);
-  // Serial.print(F("[ ")); Serial.print(millis()); Serial.print(F(" ms ] "));
-  // Serial.print(F("IR: ")); Serial.print(ir);  Serial.print(F("  "));
-  // Serial.print(F("Full: ")); Serial.print(full); Serial.print(F("  "));
-  customSerialPrint(F("Visible: ")); customSerialPrint(String(full - ir)); customSerialPrint(F("  "));
-  customSerialPrint(F("Lux: ")); customSerialPrintln(String(tsl.calculateLux(full, ir), 6));
 }
 
 void scanDevices() {

@@ -1,71 +1,58 @@
 /*
     SkyMonitor Nano
-    Starts light sensor and rain sensor and gets sensor data
+    Reads wind sensor and rain sensor
     Prints sensor data to serial port
 */
-
-// Light Sensor
-#include "DFRobot_B_LUX_V30C.h"
-DFRobot_B_LUX_V30C    myLux(13);//The sensor chip is set to 13 pins, SCL and SDA adopt default configuration
+#include <Arduino.h>
 
 // Rain sensor
 #define sensorPinAnalog A0
 
+// Wind Sensor
+unsigned long lastDebounceTime = 0;  // The last time the output pin was toggled
+unsigned long debounceDelay = 1000;  // The debounce time; increase if the output flickers
+
+int pinInterrupt = 2;  // Blue - NPNR pulse output
+
+volatile int Count = 0;  // Pulse count (volatile because it changes in an ISR)
+
+void onChange() {
+    if (digitalRead(pinInterrupt) == LOW) {
+        Count++;
+    }
+}
+
 void setup() {
     Serial.begin(115200);
-    while (!Serial);
+    while (!Serial) {
+        ;  // Wait for serial port to connect. Needed for native USB
+    }
     Serial.println("Serial of Nano connected");
 
-    Wire.begin(); //Joing I2C bus
-    // Connection test
-    scanDevices();
-
-    // Start light sensor
-    myLux.begin(); // Start the light sensor
+    // Wind sensor
+    pinMode(pinInterrupt, INPUT_PULLUP);                                      // Set the interrupt pin
+    attachInterrupt(digitalPinToInterrupt(pinInterrupt), onChange, FALLING);  // Enable interrupt on falling edge
 }
 
 unsigned long previousMillis = 0;
-const long interval = 1000; // Interval at which to read sensors
+const long interval = 1000;  // Interval at which to read sensors
 
 void loop() {
     unsigned long currentMillis = millis();
-
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
-        
-        int lightSensorValue = myLux.lightStrengthLux();
-        Serial.print("LightSensor,");
-        Serial.println(lightSensorValue);
 
-        int rainSensorValue = analogRead(sensorPinAnalog);
-        Serial.print("Rainsensor,");
-        Serial.println(rainSensorValue);
-    }
-}
+        if ((currentMillis - lastDebounceTime) > debounceDelay) {
+            lastDebounceTime = currentMillis;
+            float windSensorValue = (Count * 8.75) / 100.0;  // Corrected calculation
+            Serial.print("WindSensor,");
+            Serial.println(windSensorValue);
 
-bool scanDevices() {
-    byte error, address;
-    int nDevices = 0;
-    Serial.println("Scanning...");
+            Count = 0;
 
-    for (address = 1; address < 127; address++ ) {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-
-        if (error == 0) {
-            Serial.print("I2C device found at address 0x");
-            if (address < 16)
-                Serial.print("0");
-            Serial.print(address, HEX);
-            Serial.println(" !");
-            nDevices++;
+            int rainSensorValue = analogRead(sensorPinAnalog);
+            Serial.print("RainSensor,");
+            Serial.println(rainSensorValue);
         }
-    }
-    if (nDevices == 0) {
-        Serial.println("Error, No I2C devices found");
-        return false;
-    } else {
-        Serial.println("Scan done.");
-        return true;
     }
 }
