@@ -5,13 +5,14 @@ import RPi.GPIO as GPIO
 import time
 
 # Relay GPIO pins
-Relay_Ch1 = 26  # Fan
+Relay_Ch1 = 26  # Fan In
 Relay_Ch2 = 20  # Dew Heater
+Relay_Ch3 = 21  # Fan Out
 
 # Setup GPIO
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
-GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)  # Relays off initially
+GPIO.setup([Relay_Ch1, Relay_Ch2, Relay_Ch3], GPIO.OUT, initial=GPIO.HIGH)  # Relays off initially
 
 def control_device(pin, action):
     if action == 'on':
@@ -26,11 +27,13 @@ def main():
         while True:
             # User menu for controlling devices
             print("\nAvailable Commands:")
-            print("  1. Turn ON Fan")
-            print("  2. Turn OFF Fan")
+            print("  1. Turn ON Fan In")
+            print("  2. Turn OFF Fan In")
             print("  3. Turn ON Dew Heater")
             print("  4. Turn OFF Dew Heater")
-            print("  5. Exit")
+            print("  5. Turn ON Fan Out")
+            print("  6. Turn OFF Fan Out")
+            print("  7. Exit")
             choice = input("Enter your choice: ")
 
             if choice == '1':
@@ -42,6 +45,10 @@ def main():
             elif choice == '4':
                 control_device(Relay_Ch2, 'off')
             elif choice == '5':
+                control_device(Relay_Ch3, 'on')
+            elif choice == '6':
+                control_device(Relay_Ch3, 'off')
+            elif choice == '7':
                 print("Exiting program")
                 break
             else:

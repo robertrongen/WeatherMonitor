@@ -21,9 +21,9 @@ settings = load_settings()  # Initial load of settings
 
 if GPIO:
     # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
-    Relay_Ch1 = 26  # Fan
+    Relay_Ch1 = 26  # Fan In
     Relay_Ch2 = 20  # Dew Heater
-    # Relay_Ch3 = 21  # Available for future use
+    Relay_Ch3 = 21  # Fan Out
     GPIO.setwarnings(False)     # Set GPIO warnings to false (optional, to avoid nuisance warnings)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
@@ -127,6 +127,7 @@ def control_fan_heater():
 
     if GPIO:
         GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+        GPIO.output(Relay_Ch3, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
 
     # Get other data, calculate values
