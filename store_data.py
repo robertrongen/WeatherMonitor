@@ -49,7 +49,11 @@ def store_sky_data(data, conn=None):
         conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
     try:
-        cursor.execute("""
+        # Ensure data types are correct
+        data = {k: (v if v is not None else None) for k, v in data.items()}
+        
+        # Prepare SQL statement
+        sql = """
             INSERT INTO sky_data (
                 timestamp, 
                 temperature, 
@@ -74,7 +78,8 @@ def store_sky_data(data, conn=None):
                 wind
             )
             VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
+        """
+        params = (
             data['temperature'],
             data['humidity'],
             data['dew_point'],
@@ -95,7 +100,13 @@ def store_sky_data(data, conn=None):
             data['brightness'],
             data['bortle'],
             data['wind']
-        ))
+        )
+
+        # Log the prepared statement
+        logger.debug(f"SQL: {sql}")
+        logger.debug(f"Params: {params}")
+
+        cursor.execute(sql, params)
         conn.commit()
         logger.info("Data stored successfully")
     except Exception as e:
