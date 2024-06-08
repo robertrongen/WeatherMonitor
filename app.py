@@ -1,5 +1,6 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
+from flask_restful import Resource, Api
 from flask_session import Session
 from flask_socketio import SocketIO
 import sqlite3
@@ -10,10 +11,9 @@ from dotenv import load_dotenv
 from datetime import datetime
 from settings import load_settings
 from system_monitor import start_background_metrics_collector
-from threading import Thread
-import time
 
 app = Flask(__name__)
+api = Api(app)  # Initialize Flask-RESTful
 load_dotenv()
 app.secret_key = os.getenv('SESSION_KEY')
 app.config["SESSION_TYPE"] = "filesystem"
@@ -32,12 +32,13 @@ def utc_to_cet(utc_str):
     cet_dt = utc_zone.localize(utc_dt).astimezone(cet_zone)
     return cet_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-def get_latest_data():
-    """Retrieve the latest data from the database."""
+def get_latest_data(table_name, limit=1):
+    """Retrieve the latest data from the specified table in the database."""
     conn = get_db_connection()
     try:
         c = conn.cursor()
-        c.execute('SELECT * FROM sky_data ORDER BY timestamp DESC LIMIT 25')
+        query = f'SELECT * FROM {table_name} ORDER BY timestamp DESC LIMIT {limit}'
+        c.execute(query)
         rows = c.fetchall()
         # Convert rows to list of dicts to ensure JSON serializability
         rows_list = [dict(row) for row in rows]
@@ -51,19 +52,24 @@ def get_latest_data():
     finally:
         conn.close()
 
-def get_latest_metrics():
-    """Retrieve the latest metrics from the Metrics table."""
-    conn = get_db_connection()
-    try:
-        c = conn.cursor()
-        c.execute('SELECT timestamp, cpu_temp, cpu_usage, memory_usage, disk_usage FROM Metrics ORDER BY timestamp DESC LIMIT 25')
-        rows = c.fetchall()
-        return [dict(row) for row in rows]
-    except Exception as e:
-        print(f"Error fetching metrics data: {e}")
-        return []
-    finally:
-        conn.close()
+class SkyData(Resource):
+    def get(self):
+        data = get_latest_data('sky_data', limit=25)
+        if data:
+            return jsonify(data)
+        else:
+            return jsonify({"error": "Error fetching sky data"}), 500
+
+class MetricsData(Resource):
+    def get(self):
+        data = get_latest_data('Metrics', limit=25)
+        if data:
+            return jsonify(data)
+        else:
+            return jsonify({"error": "Error fetching metrics data"}), 500
+
+api.add_resource(SkyData, '/api/sky_data')
+api.add_resource(MetricsData, '/api/metrics_data')
 
 def read_log_file(path):
     try:
@@ -95,7 +101,7 @@ def disable_alert():
 
 @app.route('/')
 def index():
-    rows_list = get_latest_data()
+    rows_list = get_latest_data('sky_data', limit=25)
     alert_active_status = get_alert_active()
     if rows_list:
         return render_template('index.html', data=rows_list, alert_active=alert_active_status)
@@ -105,7 +111,7 @@ def index():
 @app.route('/data')
 def serial_data():
     """API endpoint to fetch data."""
-    data = get_latest_metrics()
+    data = get_latest_data('sky_data', limit=25)
     if data:
         return jsonify(data)
     else:
@@ -122,11 +128,10 @@ def load_more():
 
 def notify_new_data():
     """Function to emit new data to all connected clients."""
-    data = get_latest_data()
+    data = get_latest_data('sky_data', limit=25)
     if data:
         print("Emitting new data: ", data)  # Debug log
         socketio.emit('new_data', {'data': data})
-        # socketio.emit('new_data', {'data': data}, namespace='/data')
     else:
         print("Error: No data available to send.")
 
@@ -158,7 +163,7 @@ def settings_page():
         return redirect(url_for('settings_page'))
     else:
         return render_template('settings.html', settings=settings)
-
+        
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
@@ -185,7 +190,7 @@ def test_disconnect():
     app.logger.info('Client disconnected')
 
 if __name__ == '__main__':
+    start_background_metrics_collector()
     if get_alert_active() is None:
         set_alert_active(False)
-    start_background_metrics_collector()
     socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
