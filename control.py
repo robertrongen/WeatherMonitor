@@ -13,21 +13,27 @@ from app import notify_new_data, get_db_connection
 
 try:
     import RPi.GPIO as GPIO
+    GPIO_AVAILABLE = True
 except (ImportError, RuntimeError):
     print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
-    GPIO = None
+    GPIO_AVAILABLE = False
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings
 
-if GPIO:
-    # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
-    Relay_Ch1 = 26  # Fan In
-    Relay_Ch2 = 20  # Dew Heater
-    Relay_Ch3 = 21  # Fan Out
-    GPIO.setwarnings(False)  # Set GPIO warnings to false (optional, to avoid nuisance warnings)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
+def setup_gpio():
+    if GPIO_AVAILABLE:
+        # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
+        Relay_Ch1 = 26  # Fan In
+        Relay_Ch2 = 20  # Dew Heater
+        Relay_Ch3 = 21  # Fan Out
+        GPIO.setwarnings(False)  # Set GPIO warnings to false (optional, to avoid nuisance warnings)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup([Relay_Ch1, Relay_Ch2, Relay_Ch3], GPIO.OUT, initial=GPIO.HIGH)
+        logger.info("GPIO setup completed")
+
+if GPIO_AVAILABLE:
+    setup_gpio()
 
 def control_fan_heater():
     logger.info("Entering control_fan_heater function")
@@ -132,11 +138,15 @@ def control_fan_heater():
             logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
         logger.debug("Before GPIO operations")
-        if GPIO:
-            GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-            GPIO.output(Relay_Ch3, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-            GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
-        logger.debug("After GPIO operations")
+        if GPIO_AVAILABLE:
+            try:
+                GPIO.output(26, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+                GPIO.output(21, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+                GPIO.output(20, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
+                logger.debug("After GPIO operations")
+            except Exception as e:
+                logger.error(f"GPIO operation failed: {e}")
+                raise
 
         # store data
         logger.info("Storing data: %s", data)
@@ -172,5 +182,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
     finally:
-        if GPIO:
+        if GPIO_AVAILABLE:
             GPIO.cleanup()
