@@ -131,10 +131,12 @@ def control_fan_heater():
         data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
         logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
+    logger.debug("Before GPIO operations")
     if GPIO:
         GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch3, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
         GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
+    logger.debug("After GPIO operations")
 
     # Get other data, calculate values
     try:
