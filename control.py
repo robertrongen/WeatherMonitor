@@ -31,122 +31,130 @@ if GPIO:
 
 def control_fan_heater():
     logger.info("Entering control_fan_heater function")
-    global settings
-    temp_hum_url = settings["temp_hum_url"]
-    settings = load_settings()  # Refresh settings on each call
-    data = {
-        "temperature": None,
-        "humidity": None,
-        "dew_point": None,
-        "heat_index": None,
-        "fan_status": "OFF",
-        "heater_status": "OFF",
-        "cpu_temperature": None,
-        "raining": None,
-        "light": None,
-        "sky_temperature": None,
-        "ambient_temperature": None,
-        "sqm_ir": None,
-        "sqm_full": None,
-        "sqm_visible": None,
-        "sqm_lux": None,
-        "cloud_coverage": None,
-        "cloud_coverage_indicator": None,
-        "brightness": None,
-        "bortle": None,
-        "wind": None
-    }
-
-    if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
-        logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
-        temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
-
     try:
-        temperature, humidity = get_temperature_humidity(temp_hum_url)
-        if temperature is not None:
-            data["temperature"] = round(temperature, 1)
-        if humidity is not None:
-            data["humidity"] = round(humidity, 1)
-        logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
-    except Exception as e:
-        logger.error(f"Failed to fetch temperature and humidity: {e}")
+        global settings
+        temp_hum_url = settings["temp_hum_url"]
+        settings = load_settings()  # Refresh settings on each call
+        data = {
+            "temperature": None,
+            "humidity": None,
+            "dew_point": None,
+            "heat_index": None,
+            "fan_status": "OFF",
+            "heater_status": "OFF",
+            "cpu_temperature": None,
+            "raining": None,
+            "light": None,
+            "sky_temperature": None,
+            "ambient_temperature": None,
+            "sqm_ir": None,
+            "sqm_full": None,
+            "sqm_visible": None,
+            "sqm_lux": None,
+            "cloud_coverage": None,
+            "cloud_coverage_indicator": None,
+            "brightness": None,
+            "bortle": None,
+            "wind": None
+        }
 
-    try:
-        raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
-        if raining is not None:
-            logger.info(f"Average rain: {raining}")
-            check_rain_alert(raining)
-            data["raining"] = raining
-        if wind is not None:
-            logger.info(f"Average wind: {wind}")
-            data["wind"] = wind
-        logger.info(f"Fetched rain: {data['raining']}, wind: {data['wind']}")
-    except Exception as e:
-        logger.error(f"Failed to fetch rain and wind sensor data: {e}")
+        if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
+            logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
+            temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
 
-    try:
-        serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
-        if serial_data:
-            data.update(serial_data)
-        logger.info(f"Fetched sky data: {serial_data}")
-    except Exception as e:
-        logger.error(f"Failed to fetch sky sensor data: {e}")
-
-    try:
-        cpu_temperature = get_cpu_temperature()
-        if cpu_temperature is not None:
-            data["cpu_temperature"] = round(cpu_temperature, 0)
-        logger.info(f"Fetched CPU temperature: {data['cpu_temperature']}")
-    except Exception as e:
-        logger.error(f"Failed to fetch CPU temperature: {e}")
-
-    try:
-        memory_usage = get_memory_usage()
-        if memory_usage is not None:
-            data["memory_usage"] = memory_usage
-        logger.info(f"Fetched memory usage: {data['memory_usage']}")
-    except Exception as e:
-        logger.error(f"Failed to fetch memory usage: {e}")
-
-    if data["temperature"] is not None and data["humidity"] is not None:
         try:
-            dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
-            temp = Temp(data["temperature"], 'c')
-            heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
-            data["dew_point"] = dewPoint
-            data["heat_index"] = heatIndex
-            logger.info(f"Computed dew point: {dewPoint}, heat index: {heatIndex}")
+            temperature, humidity = get_temperature_humidity(temp_hum_url)
+            if temperature is not None:
+                data["temperature"] = round(temperature, 1)
+            if humidity is not None:
+                data["humidity"] = round(humidity, 1)
+            logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
         except Exception as e:
-            logger.error(f"Failed to compute dew point or heat index: {e}")
+            logger.error(f"Failed to fetch temperature and humidity: {e}")
 
-    if data["temperature"] is not None:
-        data["fan_status"] = "ON" if (
-            data["temperature"] > settings["ambient_temp_threshold"]
-            or data["temperature"] <= data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
-            or data.get("cpu_temperature", 0) > settings["cpu_temp_threshold"]
-            or data.get("memory_usage", 0) > settings["memory_usage_threshold"]
-        ) else "OFF"
+        try:
+            raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
+            if raining is not None:
+                logger.info(f"Average rain: {raining}")
+                check_rain_alert(raining)
+                data["raining"] = raining
+            if wind is not None:
+                logger.info(f"Average wind: {wind}")
+                data["wind"] = wind
+            logger.info(f"Fetched rain: {data['raining']}, wind: {data['wind']}")
+        except Exception as e:
+            logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
-        data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
-        logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
+        try:
+            serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
+            if serial_data:
+                data.update(serial_data)
+            logger.info(f"Fetched sky data: {serial_data}")
+        except Exception as e:
+            logger.error(f"Failed to fetch sky sensor data: {e}")
 
-    logger.debug("Before GPIO operations")
-    if GPIO:
-        GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-        GPIO.output(Relay_Ch3, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-        GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
-    logger.debug("After GPIO operations")
+        try:
+            cpu_temperature = get_cpu_temperature()
+            if cpu_temperature is not None:
+                data["cpu_temperature"] = round(cpu_temperature, 0)
+            logger.info(f"Fetched CPU temperature: {data['cpu_temperature']}")
+        except Exception as e:
+            logger.error(f"Failed to fetch CPU temperature: {e}")
 
-    # store data
-    logger.info("Storing data: %s", data)
-    conn = get_db_connection()
-    try:
-        logger.debug("Calling store_sky_data()")
-        store_sky_data(data, conn)
-        logger.debug("store_sky_data() called successfully")
-        notify_new_data()
-    finally:
-        conn.close()
+        try:
+            memory_usage = get_memory_usage()
+            if memory_usage is not None:
+                data["memory_usage"] = memory_usage
+            logger.info(f"Fetched memory usage: {data['memory_usage']}")
+        except Exception as e:
+            logger.error(f"Failed to fetch memory usage: {e}")
+
+        if data["temperature"] is not None and data["humidity"] is not None:
+            try:
+                dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
+                temp = Temp(data["temperature"], 'c')
+                heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
+                data["dew_point"] = dewPoint
+                data["heat_index"] = heatIndex
+                logger.info(f"Computed dew point: {dewPoint}, heat index: {heatIndex}")
+            except Exception as e:
+                logger.error(f"Failed to compute dew point or heat index: {e}")
+
+        if data["temperature"] is not None:
+            data["fan_status"] = "ON" if (
+                data["temperature"] > settings["ambient_temp_threshold"]
+                or data["temperature"] <= data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
+                or data.get("cpu_temperature", 0) > settings["cpu_temp_threshold"]
+                or data.get("memory_usage", 0) > settings["memory_usage_threshold"]
+            ) else "OFF"
+
+            data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
+            logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
+
+        logger.debug("Before GPIO operations")
+        if GPIO:
+            GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+            GPIO.output(Relay_Ch3, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
+            GPIO.output(Relay_Ch2, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
+        logger.debug("After GPIO operations")
+
+        # store data
+        logger.info("Storing data: %s", data)
+        conn = get_db_connection()
+        try:
+            logger.debug("Calling store_sky_data()")
+            store_sky_data(data, conn)
+            logger.debug("store_sky_data() called successfully")
+            notify_new_data()
+        except Exception as e:
+            logger.error(f"Failed to store data: {e}")
+        finally:
+            conn.close()
+        logger.info("Exiting control_fan_heater function")
+
+    except Exception as e:
+        logger.error(f"Unexpected error in control_fan_heater: {e}")
+        raise
 
 if __name__ == '__main__':
     setup_database()
