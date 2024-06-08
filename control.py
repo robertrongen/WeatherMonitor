@@ -25,7 +25,7 @@ if GPIO:
     Relay_Ch1 = 26  # Fan In
     Relay_Ch2 = 20  # Dew Heater
     Relay_Ch3 = 21  # Fan Out
-    GPIO.setwarnings(False)     # Set GPIO warnings to false (optional, to avoid nuisance warnings)
+    GPIO.setwarnings(False)  # Set GPIO warnings to false (optional, to avoid nuisance warnings)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup([Relay_Ch1, Relay_Ch2], GPIO.OUT, initial=GPIO.HIGH)
 
@@ -58,7 +58,6 @@ def control_fan_heater():
     }
 
     if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
-        print(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
         logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
         temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
 
@@ -156,7 +155,10 @@ if __name__ == '__main__':
         control_fan_heater()
         while True:
             logger.debug("Sleeping for interval")
+            start_sleep_time = time.time()
             time.sleep(settings["sleep_time"])
+            end_sleep_time = time.time()
+            logger.debug(f"Slept for {end_sleep_time - start_sleep_time} seconds")
             logger.debug("Calling control_fan_heater()")
             control_fan_heater()
     except KeyboardInterrupt:
