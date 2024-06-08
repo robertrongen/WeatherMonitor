@@ -72,7 +72,7 @@ def control_fan_heater():
         logger.error(f"Failed to fetch temperature and humidity: {e}")
 
     try:
-        raining, wind = get_serial_sensor_data(settings["serial_port_rain"], settings["baud_rate"])
+        raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
         if raining is not None:
             logger.info(f"Average rain: {raining}")
             check_rain_alert(raining)
