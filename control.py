@@ -137,24 +137,20 @@ def control_fan_heater():
             data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
             logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
-        logger.debug("Before GPIO operations")
         if GPIO_AVAILABLE:
             try:
                 GPIO.output(26, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
                 GPIO.output(21, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
                 GPIO.output(20, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
-                logger.debug("After GPIO operations")
             except Exception as e:
                 logger.error(f"GPIO operation failed: {e}")
                 raise
 
         # store data
-        logger.info("Storing data: %s", data)
+        logger.info("Storing data")
         conn = get_db_connection()
         try:
-            logger.debug("Calling store_sky_data()")
             store_sky_data(data, conn)
-            logger.debug("store_sky_data() called successfully")
             notify_new_data()
         except Exception as e:
             logger.error(f"Failed to store data: {e}")
@@ -172,12 +168,10 @@ if __name__ == '__main__':
         logger.info("Starting control loop")
         control_fan_heater()
         while True:
-            logger.debug("Sleeping for interval")
             start_sleep_time = time.time()
             time.sleep(settings["sleep_time"])
             end_sleep_time = time.time()
-            logger.debug(f"Slept for {end_sleep_time - start_sleep_time} seconds")
-            logger.debug("Calling control_fan_heater()")
+            logger.info(f"Slept for {end_sleep_time - start_sleep_time} seconds")
             control_fan_heater()
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
