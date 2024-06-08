@@ -155,7 +155,9 @@ def control_fan_heater():
     logger.info("Storing data: %s", data)
     conn = get_db_connection()
     try:
+        logger.debug("Calling store_sky_data()")
         store_sky_data(data, conn)
+        logger.debug("store_sky_data() called successfully")
         notify_new_data()
     finally:
         conn.close()
