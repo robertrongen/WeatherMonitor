@@ -51,7 +51,7 @@ def get_rain_wind_data(port, rate, num_samples=10, timeout=120, retry_delay=10):
             with serial.Serial(port, rate, timeout=1) as ser:
                 while time.time() < end_time and (len(rain_readings) < num_samples or len(wind_readings) < num_samples):
                     line = ser.readline().decode('utf-8').strip()
-                    if "Rainsensor," in line:
+                    if "RainSensor," in line:
                         try:
                             _, value = line.split(',')
                             rain_readings.append(float(value))
@@ -69,7 +69,7 @@ def get_rain_wind_data(port, rate, num_samples=10, timeout=120, retry_delay=10):
                                 logger.info(f"Average wind intensity: {average_wind}")
                         except ValueError:
                             logger.error("Failed to parse wind data")
-                    time.sleep(2)
+                    # Remove the delay here to ensure continuous reading
                 if len(rain_readings) >= num_samples and len(wind_readings) >= num_samples:
                     return average_rain, average_wind
         except serial.SerialException:

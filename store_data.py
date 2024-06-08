@@ -34,7 +34,7 @@ def setup_database(conn=None):
             cloud_coverage REAL,
             cloud_coverage_indicator REAL,
             brightness REAL,
-            bortle REAL
+            bortle REAL,
             wind REAL
         )
     """)

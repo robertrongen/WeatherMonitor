@@ -165,4 +165,4 @@ if __name__ == '__main__':
     finally:
         if GPIO:
             GPIO.cleanup()
-        logger.info("GPIO cleanup executed")
+        # logger.info("GPIO cleanup executed")
