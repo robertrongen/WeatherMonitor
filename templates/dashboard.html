@@ -15,11 +15,11 @@
 fetch('/data')
     .then(response => response.json())
     .then(data => {
-        const timestamps = data.map(item => item[0]);
-        const cpu_temps = data.map(item => item[1]);
-        const cpu_usages = data.map(item => item[2]);
-        const mem_usages = data.map(item => item[3]);
-        const disk_usages = data.map(item => item[4]);
+        const timestamps = data.map(item => item.timestamp);
+        const cpu_temps = data.map(item => item.cpu_temp);
+        const cpu_usages = data.map(item => item.cpu_usage);
+        const mem_usages = data.map(item => item.memory_usage);
+        const disk_usages = data.map(item => item.disk_usage);
 
         const trace1 = {
             x: timestamps,

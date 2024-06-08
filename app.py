@@ -9,6 +9,9 @@ import pytz
 from dotenv import load_dotenv
 from datetime import datetime
 from settings import load_settings
+from system_monitor import start_background_metrics_collector
+from threading import Thread
+import time
 
 app = Flask(__name__)
 load_dotenv()
@@ -48,6 +51,20 @@ def get_latest_data():
     finally:
         conn.close()
 
+def get_latest_metrics():
+    """Retrieve the latest metrics from the Metrics table."""
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute('SELECT timestamp, cpu_temp, cpu_usage, memory_usage, disk_usage FROM Metrics ORDER BY timestamp DESC LIMIT 25')
+        rows = c.fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error fetching metrics data: {e}")
+        return []
+    finally:
+        conn.close()
+
 def read_log_file(path):
     try:
         with open(path, 'r') as file:
@@ -65,7 +82,7 @@ def get_alert_active() -> bool:
             return file.read().strip().lower() == 'true'
     except FileNotFoundError:
         return None  # Default value or handle the absence of the file
-        
+
 @app.route('/enable-alert', methods=['POST'])
 def enable_alert():
     set_alert_active(True)
@@ -79,7 +96,7 @@ def disable_alert():
 @app.route('/')
 def index():
     rows_list = get_latest_data()
-    alert_active_status=get_alert_active()
+    alert_active_status = get_alert_active()
     if rows_list:
         return render_template('index.html', data=rows_list, alert_active=alert_active_status)
     else:
@@ -88,7 +105,7 @@ def index():
 @app.route('/data')
 def serial_data():
     """API endpoint to fetch data."""
-    data = get_latest_data()
+    data = get_latest_metrics()
     if data:
         return jsonify(data)
     else:
@@ -141,7 +158,7 @@ def settings_page():
         return redirect(url_for('settings_page'))
     else:
         return render_template('settings.html', settings=settings)
-        
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
@@ -170,4 +187,5 @@ def test_disconnect():
 if __name__ == '__main__':
     if get_alert_active() is None:
         set_alert_active(False)
+    start_background_metrics_collector()
     socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)

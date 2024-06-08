@@ -3,7 +3,8 @@
 # -*- coding:utf-8 -*-
 import time
 from settings import load_settings
-from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data, get_cpu_temperature, get_memory_usage
+from system_monitor import get_cpu_temperature
+from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
 from store_data import store_sky_data, setup_database
