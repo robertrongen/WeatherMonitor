@@ -10,7 +10,7 @@ import time
 from settings import load_settings
 from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data, get_cpu_temperature, get_memory_usage
 from weather_indicators import calculate_indicators, calculate_dewPoint
-from meteocalc import heat_index, Temp#, dew_point
+from meteocalc import heat_index, Temp #, dew_point
 from store_data import store_sky_data, setup_database
 from app_logging import setup_logger
 from rain_alarm import check_rain_alert
@@ -68,6 +68,7 @@ def control_fan_heater():
             data["temperature"] = round(temperature, 1)
         if humidity is not None:
             data["humidity"] = round(humidity, 1)
+        logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
     except Exception as e:
         logger.error(f"Failed to fetch temperature and humidity: {e}")
 
@@ -80,6 +81,7 @@ def control_fan_heater():
         if wind is not None:
             logger.info(f"Average wind: {wind}")
             data["wind"] = wind
+        logger.info(f"Fetched rain: {data['raining']}, wind: {data['wind']}")
     except Exception as e:
         logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
@@ -87,6 +89,7 @@ def control_fan_heater():
         serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
         if serial_data:
             data.update(serial_data)
+        logger.info(f"Fetched sky data: {serial_data}")
     except Exception as e:
         logger.error(f"Failed to fetch sky sensor data: {e}")
 
@@ -94,6 +97,7 @@ def control_fan_heater():
         cpu_temperature = get_cpu_temperature()
         if cpu_temperature is not None:
             data["cpu_temperature"] = round(cpu_temperature, 0)
+        logger.info(f"Fetched CPU temperature: {data['cpu_temperature']}")
     except Exception as e:
         logger.error(f"Failed to fetch CPU temperature: {e}")
 
@@ -101,6 +105,7 @@ def control_fan_heater():
         memory_usage = get_memory_usage()
         if memory_usage is not None:
             data["memory_usage"] = memory_usage
+        logger.info(f"Fetched memory usage: {data['memory_usage']}")
     except Exception as e:
         logger.error(f"Failed to fetch memory usage: {e}")
 
@@ -111,7 +116,7 @@ def control_fan_heater():
             heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
             data["dew_point"] = dewPoint
             data["heat_index"] = heatIndex
-            logger.info(f"dew_point: {dewPoint}")
+            logger.info(f"Computed dew point: {dewPoint}, heat index: {heatIndex}")
         except Exception as e:
             logger.error(f"Failed to compute dew point or heat index: {e}")
 
@@ -124,6 +129,7 @@ def control_fan_heater():
         ) else "OFF"
 
         data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
+        logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
     if GPIO:
         GPIO.output(Relay_Ch1, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
@@ -141,6 +147,7 @@ def control_fan_heater():
             data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 1) if cloud_coverage_indicator is not None else None
             data["brightness"] = round(brightness, 1) if brightness is not None else None
             data["bortle"] = round(bortle, 1) if bortle is not None else None
+            logger.info(f"Computed additional indicators: cloud_coverage: {data['cloud_coverage']}, brightness: {data['brightness']}, bortle: {data['bortle']}")
     except Exception as e:
         logger.error(f"Failed to calculate additional indicators: {e}")
 
@@ -165,4 +172,4 @@ if __name__ == '__main__':
     finally:
         if GPIO:
             GPIO.cleanup()
-        # logger.info("GPIO cleanup executed")
+            # logger.info("GPIO cleanup executed")
