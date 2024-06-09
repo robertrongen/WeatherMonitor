@@ -97,9 +97,12 @@ def store_system_metrics(metrics):
 def background_metrics_collector():
     """Run the metrics collector in the background."""
     while True:
-        metrics = collect_system_metrics()
-        store_system_metrics(metrics)
-        time.sleep(60)  # Collect metrics every 60 seconds
+        try:
+            metrics = collect_system_metrics()
+            store_system_metrics(metrics)
+            time.sleep(60)  # Collect metrics every 60 seconds
+        except Exception as e:
+            logger.error(f"Error in background_metrics_collector: {e}")
 
 def start_background_metrics_collector():
     metrics_thread = Thread(target=background_metrics_collector)
@@ -109,3 +112,9 @@ def start_background_metrics_collector():
 if __name__ == '__main__':
     create_metrics_table()
     start_background_metrics_collector()
+
+    try:
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        logger.info("System monitor service interrupted by user")
