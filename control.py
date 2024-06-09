@@ -68,16 +68,16 @@ def control_fan_heater():
         if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
             logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
             temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
-
-        try:
-            temperature, humidity = get_temperature_humidity(temp_hum_url)
-            if temperature is not None:
-                data["temperature"] = round(temperature, 1)
-            if humidity is not None:
-                data["humidity"] = round(humidity, 1)
-            logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
-        except Exception as e:
-            logger.error(f"Failed to fetch temperature and humidity: {e}")
+        else:
+            try:
+                temperature, humidity = get_temperature_humidity(temp_hum_url)
+                if temperature is not None:
+                    data["temperature"] = round(temperature, 1)
+                if humidity is not None:
+                    data["humidity"] = round(humidity, 1)
+                logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
+            except Exception as e:
+                logger.error(f"Failed to fetch temperature and humidity: {e}")
 
         try:
             raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
@@ -107,14 +107,6 @@ def control_fan_heater():
             logger.info(f"Fetched CPU temperature: {data['cpu_temperature']}")
         except Exception as e:
             logger.error(f"Failed to fetch CPU temperature: {e}")
-
-        try:
-            memory_usage = get_memory_usage()
-            if memory_usage is not None:
-                data["memory_usage"] = memory_usage
-            logger.info(f"Fetched memory usage: {data['memory_usage']}")
-        except Exception as e:
-            logger.error(f"Failed to fetch memory usage: {e}")
 
         if data["temperature"] is not None and data["humidity"] is not None:
             try:
