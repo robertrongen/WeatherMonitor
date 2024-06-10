@@ -32,31 +32,59 @@ void setup() {
     // Wind sensor
     pinMode(pinInterrupt, INPUT_PULLUP);                                      // Set the interrupt pin
     attachInterrupt(digitalPinToInterrupt(pinInterrupt), onChange, FALLING);  // Enable interrupt on falling edge
-    
-    // disable LED
-    pinMode(13, OUTPUT);  // Set pin 13 as an output
-    digitalWrite(13, LOW);  // Turn off the LED
 }
 
 unsigned long previousMillis = 0;
-const long interval = 2000;  // Interval at which to read sensors
+const long interval = 1000;  // Interval at which to read sensors
+
+unsigned long startTime = 0;
+const long measurementPeriod = 5000;  // 5-second period for wind sensor
+
+int rainReadings[5];  // Array to hold rain sensor readings
+int readingIndex = 0;
 
 void loop() {
     unsigned long currentMillis = millis();
+
+    if (currentMillis - startTime >= measurementPeriod) {
+        startTime = currentMillis;
+
+        // Compute wind sensor value
+        float windSensorValue = (Count * 8.75) / 100.0;  // Corrected calculation
+        Serial.print("WindSensor,");
+        Serial.println(windSensorValue);
+
+        if (Count == 0) {
+            Serial.println("Warning: No wind sensor pulses detected");
+        }
+
+        // Reset pulse count for next period
+        Count = 0;
+
+        // Compute average rain sensor value
+        int totalRain = 0;
+        for (int i = 0; i < 5; i++) {
+            totalRain += rainReadings[i];
+        }
+        float averageRain = totalRain / 5.0;
+        Serial.print("RainSensor,");
+        Serial.println(averageRain);
+
+        // Reset rain readings array
+        readingIndex = 0;
+    }
+
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
 
-        if ((currentMillis - lastDebounceTime) > debounceDelay) {
-            lastDebounceTime = currentMillis;
-            float windSensorValue = (Count * 8.75) / 100.0;  // Corrected calculation
-            Serial.print("WindSensor,");
-            Serial.println(windSensorValue);
+        // Read rain sensor value
+        int rainSensorValue = analogRead(sensorPinAnalog);
+        rainReadings[readingIndex] = rainSensorValue;
+        readingIndex++;
 
-            Count = 0;
-
-            int rainSensorValue = analogRead(sensorPinAnalog);
-            Serial.print("RainSensor,");
-            Serial.println(rainSensorValue);
+        // Ensure the reading index wraps around after 5 readings
+        if (readingIndex >= 5) {
+            readingIndex = 0;
         }
     }
 }

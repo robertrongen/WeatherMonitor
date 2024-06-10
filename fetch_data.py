@@ -41,43 +41,33 @@ def get_rain_wind_data(port, rate, num_samples=10, timeout=120, retry_delay=10):
     Waits until enough samples are collected or the timeout expires.
     Retries if the serial port is busy.
     """
-    end_time = time.time() + timeout
-    rain_readings = []
-    wind_readings = []
+   end_time = time.time() + timeout
 
     while time.time() < end_time:
         try:
             with serial.Serial(port, rate, timeout=1) as ser:
-                while time.time() < end_time and (len(rain_readings) < num_samples or len(wind_readings) < num_samples):
-                    line = ser.readline().decode('utf-8').strip()
-                    if "RainSensor," in line:
-                        try:
-                            _, value = line.split(',')
-                            rain_readings.append(float(value))
-                            if len(rain_readings) == num_samples:
-                                average_rain = mean(rain_readings)
-                                logger.info(f"Average rain intensity: {average_rain}")
-                        except ValueError:
-                            logger.error("Failed to parse rain data")
-                    elif "WindSensor," in line:
-                        try:
-                            _, value = line.split(',')
-                            wind_readings.append(float(value))
-                            if len(wind_readings) == num_samples:
-                                average_wind = mean(wind_readings)
-                                logger.info(f"Average wind intensity: {average_wind}")
-                        except ValueError:
-                            logger.error("Failed to parse wind data")
-                    # Remove the delay here to ensure continuous reading
-                if len(rain_readings) >= num_samples and len(wind_readings) >= num_samples:
-                    return average_rain, average_wind
+                line = ser.readline().decode('utf-8').strip()
+                if line:
+                    try:
+                        if "RainSensor," in line:
+                            _, rain_value = line.split(',')
+                            rain_intensity = float(rain_value)
+                            logger.info(f"Rain intensity: {rain_intensity}")
+                            return rain_intensity, None
+                        elif "WindSensor," in line:
+                            _, wind_value = line.split(',')
+                            wind_intensity = float(wind_value)
+                            logger.info(f"Wind intensity: {wind_intensity}")
+                            return None, wind_intensity
+                    except ValueError:
+                        logger.error(f"Failed to parse sensor data: {line}")
         except serial.SerialException:
             logger.info("Serial port is busy, waiting for retry...")
             time.sleep(retry_delay)  # Wait before trying again
-            continue  # Retry after waiting
 
-    logger.error("Timeout reached or insufficient data for average calculation.")
+    logger.error("Timeout reached without receiving valid sensor data.")
     return None, None
+
 
 def get_temperature_humidity(url):
     """
