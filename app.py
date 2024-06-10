@@ -75,7 +75,7 @@ api.add_resource(MetricsData, '/api/metrics_data')
 def set_alert_active(state: bool):
     with open('alert_status.txt', 'w') as file:
         file.write(str(state))
-    app.logger.info(f"Alert active status loaded: {status}")
+    app.logger.info(f"Alert active status loaded: {state}")
 
 def get_alert_active() -> bool:
     try:
