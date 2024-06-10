@@ -1,12 +1,11 @@
-#fetch_data.py
+# fetch_data.py
 import requests
 import serial
 import json
 import time
-from statistics import mean
 from app_logging import setup_logger
-logger = setup_logger('fetch_data', 'fetch_data.log')
 
+logger = setup_logger('fetch_data', 'fetch_data.log')
 ser = None
 
 def get_sky_data(port, rate, timeout=120):
@@ -21,27 +20,24 @@ def get_sky_data(port, rate, timeout=120):
                 if line:
                     try:
                         data = json.loads(line)
-                        # print(f"Received valid JSON data: {line}")
                         logger.info(f"Received valid JSON data: {line}")
                         return data
                     except json.JSONDecodeError:
                         logger.debug(f"Failed to decode JSON or no JSON: {line}, skipping line.")
                 time.sleep(2)
     except serial.serialutil.SerialException:
-        # print("Serial port for json is busy, waiting...")
         logger.info("Serial port for json is busy, waiting...")
         time.sleep(10)  # Wait a bit before trying to access the port again
-    # print("Timeout reached without receiving valid JSON data.")
     logger.error("Timeout reached without receiving valid JSON data.")
     return None
 
-def get_rain_wind_data(port, rate, num_samples=10, timeout=120, retry_delay=10):
+def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
     """
-    Reads multiple rain and wind sensor data samples from the serial port and returns the averages.
-    Waits until enough samples are collected or the timeout expires.
+    Reads rain and wind sensor data samples from the serial port.
+    Waits until data is available or the timeout expires.
     Retries if the serial port is busy.
     """
-   end_time = time.time() + timeout
+    end_time = time.time() + timeout
 
     while time.time() < end_time:
         try:
@@ -67,7 +63,6 @@ def get_rain_wind_data(port, rate, num_samples=10, timeout=120, retry_delay=10):
 
     logger.error("Timeout reached without receiving valid sensor data.")
     return None, None
-
 
 def get_temperature_humidity(url):
     """
@@ -95,4 +90,3 @@ def get_temperature_humidity(url):
     except Exception as e:
         logger.warning(f"Failed to fetch temperature and humidity: {e}")
         return None, None
-
