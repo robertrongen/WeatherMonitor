@@ -4,11 +4,10 @@ import requests
 from settings import load_settings
 from dotenv import load_dotenv
 from app_logging import setup_logger
-
+from app import get_alert_active, set_alert_active
 logger = setup_logger('rain', 'rain.log')
 load_dotenv()  # Load environment variables from .env file
 settings = load_settings()  # Refresh settings on each call
-alert_active = False
 
 def send_pushover_notification(user_key, api_token, message):
     """Send a notification via Pushover."""
@@ -25,27 +24,22 @@ def send_pushover_notification(user_key, api_token, message):
 
 def check_rain_alert(average_rain):
     """Check for rain alerts from the serial port and send notifications."""
-    global alert_active
-    if not alert_active:
-        print("Rain alert not active")
+    if not get_alert_active():
+        logger.info("Rain alert not active")
         return
 
-    global settings
     settings = load_settings()
     user_key = os.getenv('PUSHOVER_USER_KEY')
     api_token = os.getenv('PUSHOVER_API_TOKEN')
     rain_threshold = settings["raining_threshold"]
 
-    print(f"average_rain measured: {average_rain}")
-    logger.info(f"average_rain measured: {average_rain}")
     if average_rain is not None:
         logger.info(f"Average rain intensity: {average_rain}")
         if average_rain < rain_threshold:
             message = "Alert: It's raining! Rain intensity: {}".format(average_rain)
             send_pushover_notification(user_key, api_token, message)
-            print(f"Rain alert sent. Rain intensity: {average_rain}")
-            logger.info(f"Rain alert sent. Rain intensity: {average_rain}")
-            alert_active = False  # Disable alert until re-enabled manually
+            logger.alarm(f"Rain alert sent. Rain intensity: {average_rain}")
+            set_alert_active(False) # Disable alert after sending notification
     else:
         print(f"No valid rain data received: {average_rain}")
         logger.info(f"No valid rain data received: {average_rain}")

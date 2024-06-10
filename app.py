@@ -75,12 +75,16 @@ api.add_resource(MetricsData, '/api/metrics_data')
 def set_alert_active(state: bool):
     with open('alert_status.txt', 'w') as file:
         file.write(str(state))
+    app.logger.info('Rain alert status set to: %s', 'active' if state else 'inactive')
 
 def get_alert_active() -> bool:
     try:
         with open('alert_status.txt', 'r') as file:
-            return file.read().strip().lower() == 'true'
+            status = file.read().strip().lower()
+            app.logger.info('Rain alert status read: %s', 'active' if status == 'true' else 'inactive')
+            return  status == 'true'
     except FileNotFoundError:
+        app.logger.warning('Alert status file not found.')
         return None  # Default value or handle the absence of the file
 
 @app.route('/enable-alert', methods=['POST'])

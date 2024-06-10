@@ -108,7 +108,11 @@ def background_metrics_collector():
     while True:
         try:
             monitor_and_log()
-            time.sleep(300)   
+            start_time = time.time()
+            monitor_and_log()
+            sleep_time = 300 - (time.time() - start_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
         except Exception as e:
             logger.error(f"Error in background_metrics_collector: {e}")
 
