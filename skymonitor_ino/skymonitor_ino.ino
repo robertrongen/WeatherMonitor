@@ -32,6 +32,10 @@ void setup() {
     // Wind sensor
     pinMode(pinInterrupt, INPUT_PULLUP);                                      // Set the interrupt pin
     attachInterrupt(digitalPinToInterrupt(pinInterrupt), onChange, FALLING);  // Enable interrupt on falling edge
+    
+    // disable LED
+    pinMode(13, OUTPUT);  // Set pin 13 as an output
+    digitalWrite(13, LOW);  // Turn off the LED
 }
 
 unsigned long previousMillis = 0;
