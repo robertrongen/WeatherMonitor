@@ -4,7 +4,6 @@ import time
 from threading import Thread
 import psutil
 from app_logging import setup_logger
-from system_monitor import start_background_metrics_collector, setup_logger
 
 logger = setup_logger('system_monitor', 'system_monitor.log')
 
