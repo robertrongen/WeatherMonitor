@@ -54,10 +54,6 @@ void loop() {
         Serial.print("WindSensor,");
         Serial.println(windSensorValue);
 
-        if (Count == 0) {
-            Serial.println("Warning: No wind sensor pulses detected");
-        }
-
         // Reset pulse count for next period
         Count = 0;
 
