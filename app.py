@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from settings import load_settings
 from system_monitor import start_background_metrics_collector
+import subprocess
 
 app = Flask(__name__)
 api = Api(app)  # Initialize Flask-RESTful
@@ -70,13 +71,6 @@ class MetricsData(Resource):
 
 api.add_resource(SkyData, '/api/sky_data')
 api.add_resource(MetricsData, '/api/metrics_data')
-
-def read_log_file(path):
-    try:
-        with open(path, 'r') as file:
-            return file.readlines()  # Return the lines in the file
-    except IOError:
-        return ["Unable to read file, please check the file path and permissions."]
 
 def set_alert_active(state: bool):
     with open('alert_status.txt', 'w') as file:
@@ -167,6 +161,20 @@ def settings_page():
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
+
+def read_log_file(file_path, line_count=200):
+    """
+    Returns the last `line_count` lines from the log file at `file_path`.
+    """
+    try:
+        result = subprocess.run(['tail', '-n', str(line_count), file_path], text=True, capture_output=True)
+        if result.stderr:
+            print("Error:", result.stderr)
+            return None
+        return result.stdout
+    except Exception as e:
+        print("Failed to read log file:", e)
+        return None
 
 @app.route('/logs/<string:log_name>')
 def show_logs(log_name):

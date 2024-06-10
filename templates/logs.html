@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Log Viewer - {{ log_name }}</title>
+        <style>
+            body { font-family: monospace; white-space: pre; }
+            .log-container { background-color: #f4f4f4; padding: 20px; border-radius: 5px; overflow: auto; max-height: 700px; }
+        </style>
+    </head>
+    <body>
+        <h1>Viewing {{ log_name }}</h1>
+        <div class="log-container">
+            {% for line in logs %}
+            {{ line }}<br>
+            {% endfor %}
+        </div>
+    </body>
+</html>
