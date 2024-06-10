@@ -120,10 +120,3 @@ def start_background_metrics_collector():
 if __name__ == '__main__':
     create_metrics_table()
     start_background_metrics_collector()
-
-    try:
-        while True:
-            monitor_and_log()
-            time.sleep(60)
-    except KeyboardInterrupt:
-        logger.info("System monitor service interrupted by user")
