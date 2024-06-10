@@ -183,7 +183,7 @@ def show_logs(log_name):
         'syslog': '/var/log/syslog',
         'allsky': '/var/log/allsky.log',
         'control': '/home/robert/github/skymonitor/log/control.log',
-        'app': '/home/robert/github/skymonitor/log/app.log'
+        'fetch': '/home/robert/github/skymonitor/log/fetch_data.log'
     }.get(log_name)
 
     if log_path and os.access(log_path, os.R_OK):
