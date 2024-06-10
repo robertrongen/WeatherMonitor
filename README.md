@@ -181,6 +181,7 @@ On RPi:
 ## System Monitoring
 
 A separate service is used to collect and store system metrics like CPU temperature, CPU usage, memory usage, and disk usage.
+Manually check system with `htop` or check <http://allsky.local/index.php?page=system>
 
 ### Setting Up System Monitor Service
 

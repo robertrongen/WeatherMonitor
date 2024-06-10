@@ -100,6 +100,7 @@ def background_metrics_collector():
         try:
             metrics = collect_system_metrics()
             store_system_metrics(metrics)
+            logger.info(f"Stored metrics: {metrics}") 
             time.sleep(60)  # Collect metrics every 60 seconds
         except Exception as e:
             logger.error(f"Error in background_metrics_collector: {e}")
