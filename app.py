@@ -160,7 +160,16 @@ def settings_page():
         
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html', logwatch_report_url='/etc/logwatch/report/logwatch.html')
+    return render_template('dashboard.html')
+
+@app.route('/logwatch')
+def logwatch_report():
+    logwatch_path = '/etc/logwatch/report'
+    logwatch_file = 'logwatch.html'
+    try:
+        return send_from_directory(logwatch_path, logwatch_file)
+    except FileNotFoundError:
+        return "LogWatch report not found.", 404
 
 def read_log_file(file_path, line_count=200):
     """
