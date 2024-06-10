@@ -10,7 +10,7 @@
 
 // Wind Sensor
 unsigned long lastDebounceTime = 0;  // The last time the output pin was toggled
-unsigned long debounceDelay = 1000;  // The debounce time; increase if the output flickers
+unsigned long debounceDelay = 100;  // The debounce time; increase if the output flickers
 
 int pinInterrupt = 2;  // Blue - NPNR pulse output
 
@@ -39,7 +39,7 @@ void setup() {
 }
 
 unsigned long previousMillis = 0;
-const long interval = 1000;  // Interval at which to read sensors
+const long interval = 2000;  // Interval at which to read sensors
 
 void loop() {
     unsigned long currentMillis = millis();
@@ -51,10 +51,6 @@ void loop() {
             float windSensorValue = (Count * 8.75) / 100.0;  // Corrected calculation
             Serial.print("WindSensor,");
             Serial.println(windSensorValue);
-
-            if (Count == 0) {
-                Serial.println("Warning: No wind sensor pulses detected");
-            }
 
             Count = 0;
 
