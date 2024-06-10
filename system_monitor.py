@@ -4,6 +4,7 @@ import time
 from threading import Thread
 import psutil
 from app_logging import setup_logger
+from system_monitor import start_background_metrics_collector, setup_logger
 
 logger = setup_logger('system_monitor', 'system_monitor.log')
 
@@ -94,14 +95,21 @@ def store_system_metrics(metrics):
     finally:
         conn.close()
 
+def monitor_and_log():
+    metrics = collect_system_metrics()
+    if metrics['cpu_temp'] > 85:  # Threshold for CPU temperature
+        logger.warning(f"High CPU temperature: {metrics['cpu_temp']}°C")
+    if metrics['disk_usage'] > 90:  # Threshold for disk usage in percentage
+        logger.error(f"High disk usage: {metrics['disk_usage']}%")
+    logger.info(f"Metrics collected: {metrics}")
+    store_system_metrics(metrics)
+
 def background_metrics_collector():
     """Run the metrics collector in the background."""
     while True:
         try:
-            metrics = collect_system_metrics()
-            store_system_metrics(metrics)
-            logger.info(f"Stored metrics: {metrics}") 
-            time.sleep(300)  
+            monitor_and_log()
+            time.sleep(300)   
         except Exception as e:
             logger.error(f"Error in background_metrics_collector: {e}")
 
@@ -116,6 +124,7 @@ if __name__ == '__main__':
 
     try:
         while True:
+            monitor_and_log()
             time.sleep(60)
     except KeyboardInterrupt:
         logger.info("System monitor service interrupted by user")
