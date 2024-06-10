@@ -63,7 +63,7 @@ class SkyData(Resource):
 
 class MetricsData(Resource):
     def get(self):
-        data = get_latest_data('Metrics', limit=25)
+        data = get_latest_data('Metrics', limit=24*12)
         if data:
             return jsonify(data)
         else:
