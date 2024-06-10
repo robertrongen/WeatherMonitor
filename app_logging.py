@@ -1,8 +1,12 @@
+
+# app_logging.py
 import logging
 import logging.handlers
 import os
 import sys
 from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
 
 load_dotenv()
 
@@ -29,29 +33,32 @@ def setup_email_logging(logger):
     # class AlertFilter(logging.Filter):
     #     def filter(self, record):
     #         return "High CPU temperature" in record.getMessage() or "High disk usage" in record.getMessage()
-
     email_host = os.getenv('EMAIL_HOST')
     email_port = int(os.getenv('EMAIL_PORT'))  # Convert port to int
     email_username = os.getenv('EMAIL_USERNAME')
     email_password = os.getenv('EMAIL_PASSWORD')
 
-    email_error_logger = logging.getLogger('email_errors')
-    setup_handlers(email_error_logger, 'email_errors.log', log_level=logging.ERROR, to_stdout=False)  # No console output for email errors
-
     try:
-        email_handler = logging.handlers.SMTPHandler(
+        server = smtplib.SMTP(email_host, email_port)
+        server.starttls()  # Secure the connection
+        server.login(email_username, email_password)
+        server.quit()
+
+        mail_handler = logging.handlers.SMTPHandler(
             mailhost=(email_host, email_port),
             fromaddr=email_username,
-            toaddrs=["rongen.robert@gmail.com"],
+            toaddrs="rongen.robert@gmail.com",
             subject="Critical Error Logged",
             credentials=(email_username, email_password),
             secure=()
         )
-        email_handler.setLevel(logging.ERROR)
-        email_handler.setFormatter(logging.Formatter("Critical error in %(name)s: %(message)s"))
-        logger.addHandler(email_handler)
+        mail_handler.setLevel(logging.ERROR)
+        mail_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        logger.addHandler(mail_handler)
+
     except Exception as e:
-        logger.error("Failed to set up email logging: %s", e)
+        logger.error("Failed to set up email logging: %s", str(e))
+        setup_handlers(logger, 'email_setup_failures.log', log_level=logging.ERROR, to_stdout=False)
 
 def setup_logger(name, log_file, level=logging.INFO):
     try:
@@ -63,4 +70,6 @@ def setup_logger(name, log_file, level=logging.INFO):
         sys.stderr.write("Failed to set up logger: {}\n".format(e))
         sys.exit(1)
 
-    return logger
+# Example usage:
+logger = setup_logger('test_email_alert', 'application.log')
+logger.error("This is a test error message to trigger an email alert!")
