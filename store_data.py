@@ -103,8 +103,8 @@ def store_sky_data(data, conn=None):
         )
 
         # Log the prepared statement
-        logger.debug(f"SQL: {sql}")
-        logger.debug(f"Params: {params}")
+        # logger.debug(f"SQL: {sql}")
+        # logger.debug(f"Params: {params}")
 
         cursor.execute(sql, params)
         conn.commit()

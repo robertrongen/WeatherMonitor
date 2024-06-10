@@ -164,23 +164,26 @@ def dashboard():
 
 def read_log_file(file_path, line_count=200):
     """
-    Returns the last `line_count` lines from the log file at `file_path`.
+    Returns the last `line_count` lines from the log file at `file_path` as a list of lines.
     """
     try:
         result = subprocess.run(['tail', '-n', str(line_count), file_path], text=True, capture_output=True)
         if result.stderr:
             print("Error:", result.stderr)
-            return None
-        return result.stdout
+            return []
+        # Split the output into lines for proper handling in the template
+        return result.stdout.strip().split('\n')
     except Exception as e:
         print("Failed to read log file:", e)
-        return None
-
+        return []
+    
 @app.route('/logs/<string:log_name>')
 def show_logs(log_name):
     log_path = {
         'syslog': '/var/log/syslog',
-        'messages': '/var/log/messages'
+        'allsky': '/var/log/allsky.log',
+        'control': '/home/robert/github/skymonitor/log/control.log',
+        'app': '/home/robert/github/skymonitor/log/app.log'
     }.get(log_name)
 
     if log_path and os.access(log_path, os.R_OK):
