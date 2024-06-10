@@ -9,6 +9,7 @@ initial_setting = rain_alarm.get_alert_active()
 class TestRainAlert(unittest.TestCase):
     def setUp(self):
         # Assuming you have a function to write the alert status to a file
+        self.initial_setting = rain_alarm.get_alert_active() 
         rain_alarm.set_alert_active(True)  # Enable the alert
 
         rain_alarm.load_dotenv()
@@ -18,13 +19,12 @@ class TestRainAlert(unittest.TestCase):
         self.api_token = rain_alarm.os.getenv('PUSHOVER_API_TOKEN')
         self.rain_threshold = rain_alarm.settings["raining_threshold"]
 
-
     @patch('rain_alarm.send_pushover_notification')
     def test_rain_alert_triggered(self, mock_notification):
         # Set an average rain value above the threshold
-        average_rain = rain_alarm.settings["raining_threshold"] + 1
+        average_rain = self.rain_threshold + 1
 
-        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': user_key, 'PUSHOVER_API_TOKEN': api_token}):
+        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': self.user_key, 'PUSHOVER_API_TOKEN': self.api_token}):
             rain_alarm.check_rain_alert(average_rain)
             # Assert that the notification was triggered
             mock_notification.assert_called_once_with(
@@ -34,7 +34,7 @@ class TestRainAlert(unittest.TestCase):
             )
 
     def tearDown(self):
-        rain_alarm.set_alert_active(initial_setting) # Restore the initial alert status
+        rain_alarm.set_alert_active(self.initial_setting) # Restore the initial alert status
 
 if __name__ == '__main__':
     unittest.main()
