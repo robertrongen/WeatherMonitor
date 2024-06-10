@@ -1,64 +1,65 @@
 <!-- /templates/dashboard.html -->
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>System Metrics Dashboard</title>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-</head>
-<body>
-    <h1>System Monitor Dashboard</h1>
-    <ul>
-        <li><a href="{{ url_for('logwatch_report') }}">View LogWatch Report</a></li>
-        <li><a href="/logs/syslog">View Syslog</a></li>
-        <li><a href="/logs/allsky">View Allsky log</a></li>
-        <li><a href="/logs/control">View control log</a></li>
-        <li><a href="/logs/fetch">View fetch data log</a></li>
-    </ul>
-<div id="chart" style="width:100%;height:500px;"></div>
-<script>
-fetch('/data')
-    .then(response => response.json())
-    .then(data => {
-        const timestamps = data.map(item => item.timestamp);
-        const cpu_temps = data.map(item => item.cpu_temp);
-        const cpu_usages = data.map(item => item.cpu_usage);
-        const mem_usages = data.map(item => item.memory_usage);
-        const disk_usages = data.map(item => item.disk_usage);
+    <head>
+        <meta charset="UTF-8">
+        <title>System Metrics Dashboard</title>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+    <body>
+        <h1>System Monitor Dashboard</h1>
+        <ul>
+            <li><a href="{{ url_for('logwatch_report') }}">View LogWatch Report</a></li>
+            <li><a href="/logs/syslog">View Syslog</a></li>
+            <li><a href="/logs/allsky">View Allsky log</a></li>
+            <li><a href="/logs/control">View control log</a></li>
+            <li><a href="/logs/fetch">View fetch data log</a></li>
+        </ul>
+        <div id="chart" style="width:100%;height:500px;"></div>
+        <script>
+            fetch('/api/metrics_data')
+                .then(response => response.json())
+                .then(data => {
+                    const timestamps = data.map(item => item.timestamp);
+                    const cpu_temps = data.map(item => item.cpu_temp);
+                    const cpu_usages = data.map(item => item.cpu_usage);
+                    const mem_usages = data.map(item => item.memory_usage);
+                    const disk_usages = data.map(item => item.disk_usage);
 
-        const trace1 = {
-            x: timestamps,
-            y: cpu_temps,
-            type: 'scatter',
-            name: 'CPU Temperature'
-        };
-        const trace2 = {
-            x: timestamps,
-            y: cpu_usages,
-            type: 'scatter',
-            name: 'CPU Usage'
-        };
-        const trace3 = {
-            x: timestamps,
-            y: mem_usages,
-            type: 'scatter',
-            name: 'Memory Usage'
-        };
-        const trace4 = {
-            x: timestamps,
-            y: disk_usages,
-            type: 'scatter',
-            name: 'Disk Usage'
-        };
+                    const trace1 = {
+                        x: timestamps,
+                        y: cpu_temps,
+                        type: 'scatter',
+                        name: 'CPU Temperature'
+                    };
+                    const trace2 = {
+                        x: timestamps,
+                        y: cpu_usages,
+                        type: 'scatter',
+                        name: 'CPU Usage'
+                    };
+                    const trace3 = {
+                        x: timestamps,
+                        y: mem_usages,
+                        type: 'scatter',
+                        name: 'Memory Usage'
+                    };
+                    const trace4 = {
+                        x: timestamps,
+                        y: disk_usages,
+                        type: 'scatter',
+                        name: 'Disk Usage'
+                    };
 
-        const layout = {
-            title: 'System Metrics',
-            xaxis: {title: 'Time'},
-            yaxis: {title: 'Values'}
-        };
+                    const layout = {
+                        title: 'System Metrics',
+                        xaxis: {title: 'Time'},
+                        yaxis: {title: 'Values'}
+                    };
 
-        Plotly.newPlot('chart', [trace1, trace2, trace3, trace4], layout);
-    });
-</script>
-</body>
+                    Plotly.newPlot('chart', [trace1, trace2, trace3, trace4], layout);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        </script>
+    </body>
 </html>
