@@ -48,6 +48,10 @@ void loop() {
             Serial.print("WindSensor,");
             Serial.println(windSensorValue);
 
+            if (Count == 0) {
+                Serial.println("Warning: No wind sensor pulses detected");
+            }
+
             Count = 0;
 
             int rainSensorValue = analogRead(sensorPinAnalog);
