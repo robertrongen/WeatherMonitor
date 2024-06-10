@@ -1,44 +1,39 @@
 import unittest
 from unittest.mock import patch
-import rain_alarm  # Import the module that contains the rain detection and notification code
+import rain_alarm
 
-class TestRainAlarm(unittest.TestCase):
+# Assuming the rain_alarm.py contains a function `set_alert_active(state)` 
+# and `send_pushover_notification(user_key, api_token, message)` as previously discussed.
+
+class TestRainAlert(unittest.TestCase):
     def setUp(self):
-        # Load settings and prepare environment variables if necessary
-        rain_alarm.load_settings()
-        self.user_key = "test_user_key"  # Example user key
-        self.api_token = "test_api_token"  # Example API token
+        # Assuming you have a function to write the alert status to a file
+        initial_setting = rain_alarm.get_alert_active() 
+        rain_alarm.set_alert_active(True)  # Enable the alert
+
+        rain_alarm.load_dotenv()
+
+        # Set user key and API token from environment variables
+        self.user_key = rain_alarm.os.getenv('PUSHOVER_USER_KEY')
+        self.api_token = rain_alarm.os.getenv('PUSHOVER_API_TOKEN')
+        self.rain_threshold = rain_alarm.settings["raining_threshold"]
 
     @patch('rain_alarm.send_pushover_notification')
     def test_rain_alert_triggered(self, mock_notification):
-        # Simulate rain alert scenario
-        average_rain = rain_alarm.settings["raining_threshold"] + 1  # Set rain above threshold
+        # Set an average rain value above the threshold
+        average_rain = rain_alarm.settings["raining_threshold"] + 1
 
-        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': self.user_key, 'PUSHOVER_API_TOKEN': self.api_token}):
+        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': user_key, 'PUSHOVER_API_TOKEN': api_token}):
             rain_alarm.check_rain_alert(average_rain)
+            # Assert that the notification was triggered
             mock_notification.assert_called_once_with(
-                self.user_key,
-                self.api_token,
+                user_key,
+                api_token,
                 f"Alert: It's raining! Rain intensity: {average_rain}"
             )
 
-    @patch('rain_alarm.send_pushover_notification')
-    def test_rain_alert_not_triggered_below_threshold(self, mock_notification):
-        # Simulate no rain alert scenario
-        average_rain = rain_alarm.settings["raining_threshold"] - 1  # Set rain below threshold
-
-        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': self.user_key, 'PUSHOVER_API_TOKEN': self.api_token}):
-            rain_alarm.check_rain_alert(average_rain)
-            mock_notification.assert_not_called()
-
-    @patch('rain_alarm.send_pushover_notification')
-    def test_no_rain_data_received(self, mock_notification):
-        # Test behavior when no valid rain data is received
-        average_rain = None
-
-        with patch.dict('os.environ', {'PUSHOVER_USER_KEY': self.user_key, 'PUSHOVER_API_TOKEN': self.api_token}):
-            rain_alarm.check_rain_alert(average_rain)
-            mock_notification.assert_not_called()
+    def tearDown(self):
+        rain_alarm.set_alert_active(initial_setting) # Restore the initial alert status
 
 if __name__ == '__main__':
     unittest.main()

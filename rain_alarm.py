@@ -24,7 +24,8 @@ def send_pushover_notification(user_key, api_token, message):
 
 def check_rain_alert(average_rain):
     """Check for rain alerts from the serial port and send notifications."""
-    if not get_alert_active():
+    alert_active = get_alert_active()  # Get the current alert state from the file
+    if not alert_active:
         logger.info("Rain alert not active")
         return
 
@@ -38,8 +39,7 @@ def check_rain_alert(average_rain):
         if average_rain < rain_threshold:
             message = "Alert: It's raining! Rain intensity: {}".format(average_rain)
             send_pushover_notification(user_key, api_token, message)
-            logger.alarm(f"Rain alert sent. Rain intensity: {average_rain}")
+            logger.info(f"Rain alert sent. Rain intensity: {average_rain}")
             set_alert_active(False) # Disable alert after sending notification
     else:
-        print(f"No valid rain data received: {average_rain}")
         logger.info(f"No valid rain data received: {average_rain}")
