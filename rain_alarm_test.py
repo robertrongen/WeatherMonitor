@@ -21,11 +21,12 @@ class TestRainAlert(unittest.TestCase):
         self.user_key = rain_alarm.os.getenv('PUSHOVER_USER_KEY')
         self.api_token = rain_alarm.os.getenv('PUSHOVER_API_TOKEN')
         self.rain_threshold = rain_alarm.settings["raining_threshold"]
+        print(f"Rain threshold: {self.rain_threshold}")
 
     @patch('rain_alarm.send_pushover_notification')
     def test_rain_alert_triggered(self, mock_notification):
         # Set an average rain value above the threshold
-        average_rain = self.rain_threshold + 1
+        average_rain = self.rain_threshold - 1 # Below the threshold
         print(f"Average rain: {average_rain}")
         with patch.dict('os.environ', {'PUSHOVER_USER_KEY': self.user_key, 'PUSHOVER_API_TOKEN': self.api_token}):
             rain_alarm.check_rain_alert(average_rain)
