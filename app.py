@@ -55,7 +55,7 @@ def get_latest_data(table_name, limit=1):
 
 class SkyData(Resource):
     def get(self):
-        data = get_latest_data('sky_data', limit=25)
+        data = get_latest_data('sky_data', limit=50)
         if data:
             return jsonify(data)
         else:
@@ -63,7 +63,7 @@ class SkyData(Resource):
 
 class MetricsData(Resource):
     def get(self):
-        data = get_latest_data('Metrics', limit=24*12)
+        data = get_latest_data('Metrics', limit=500)
         if data:
             return jsonify(data)
         else:
@@ -175,7 +175,7 @@ def logwatch_report():
     except FileNotFoundError:
         return "LogWatch report not found.", 404
 
-def read_log_file(file_path, line_count=200):
+def read_log_file(file_path, line_count=500):
     """
     Returns the last `line_count` lines from the log file at `file_path` as a list of lines.
     """
