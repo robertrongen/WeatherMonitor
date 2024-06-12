@@ -193,10 +193,10 @@ def read_log_file(file_path, line_count=500):
 @app.route('/logs/<string:log_name>')
 def show_logs(log_name):
     log_path = {
-        'syslog': '/varlogs/syslog',
-        'allsky': '/varlogs/allsky.log',
-        'control': '/home/robert/github/skymonitorlogs/control.log',
-        'fetch': '/home/robert/github/skymonitorlogs/fetch_data.log'
+        'syslog': '/var/log/syslog',
+        'allsky': '/var/log/allsky.log',
+        'control': '/home/robert/github/skymonitor/logs/control.log',
+        'fetch': '/home/robert/github/skymonitor/logs/fetch_data.log'
     }.get(log_name)
 
     if log_path and os.access(log_path, os.R_OK):
