@@ -7,6 +7,8 @@ import sys
 from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
+import socket
+import time
 
 load_dotenv()
 
