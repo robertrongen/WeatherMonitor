@@ -33,37 +33,37 @@ def setup_handlers(logger, log_file, log_level=logging.ERROR, to_stdout=True):
             console_handler.setFormatter(console_formatter)
             logger.addHandler(console_handler)
 
-def setup_email_logging(logger):
+def setup_email_logging(logger, attempt_to_email_errors=True):
     # Add specific conditions for logging
     # class AlertFilter(logging.Filter):
     #     def filter(self, record):
     #         return "High CPU temperature" in record.getMessage() or "High disk usage" in record.getMessage()
     email_host = os.getenv('EMAIL_HOST')
-    email_port = int(os.getenv('EMAIL_PORT'))  # Convert port to int
+    email_port = int(os.getenv('EMAIL_PORT'))
     email_username = os.getenv('EMAIL_USERNAME')
     email_password = os.getenv('EMAIL_PASSWORD')
 
-    # Setting up a separate logger for email errors to avoid recursion
+    # Email error logger setup
     email_error_logger = logging.getLogger('email_error')
-    fh = logging.FileHandler('email_errors.log')
-    fh.setLevel(logging.ERROR)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    email_error_logger.addHandler(fh)
+    if not email_error_logger.handlers:
+        fh = logging.FileHandler('email_errors.log')
+        fh.setLevel(logging.ERROR)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        email_error_logger.addHandler(fh)
 
     resolved = False
     for _ in range(3):  # Try to resolve up to 3 times
         try:
-            # Check if DNS can resolve the host
             socket.gethostbyname(email_host)
             resolved = True
             break
-        except socket.gaierror:
-            logger.error("DNS resolution failed for %s. Retrying...", email_host)
+        except socket.gaierror as e:
+            email_error_logger.error("DNS resolution failed for %s. Retrying...", email_host)
             time.sleep(5)  # Wait for 5 seconds before retrying
 
     if not resolved:
-        logger.error("Failed to resolve SMTP server address after multiple attempts.")
+        email_error_logger.error("Failed to resolve SMTP server address after multiple attempts.")
         return
 
     try:
@@ -83,12 +83,9 @@ def setup_email_logging(logger):
         mail_handler.setLevel(logging.ERROR)
         mail_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         logger.addHandler(mail_handler)
-
     except Exception as e:
-        if attempt_to_email_errors:
-            email_error_logger.error("Failed to set up email logging: %s", str(e))
-            # Disable further attempts to log errors via email to prevent recursion
-            setup_email_logging(logger, attempt_to_email_errors=False)
+        email_error_logger.error("Failed to set up email logging: %s", str(e))
+
 
 def setup_logger(name, log_file, level=logging.INFO):
     try:
@@ -99,7 +96,3 @@ def setup_logger(name, log_file, level=logging.INFO):
     except Exception as e:
         sys.stderr.write("Failed to set up logger: {}\n".format(e))
         sys.exit(1)
-
-# Example usage:
-logger = setup_logger('test_email_alert', 'application.log')
-logger.error("This is a test error message to trigger an email alert!")
