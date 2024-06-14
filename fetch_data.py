@@ -51,11 +51,9 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
                             if "RainSensor," in line:
                                 _, rain_value = line.split(',')
                                 rain_intensity = float(rain_value)
-                                logger.info(f"Rain intensity: {rain_intensity}")
                             elif "WindSensor," in line:
                                 _, wind_value = line.split(',')
                                 wind_intensity = float(wind_value)
-                                logger.info(f"Wind intensity: {wind_intensity}")
                             if rain_intensity is not None and wind_intensity is not None:
                                 return rain_intensity, wind_intensity
                         except ValueError:
@@ -101,11 +99,9 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
-            logger.info(f"Read allsky data: camera_temp: {data['AS_TEMPERATURE_C']}, star_count: {data['AS_STARCOUNT']}, day_or_night: {data['DAY_OR_NIGHT']}")
             camera_temp = int(data['AS_TEMPERATURE_C'])
             star_count = int(data['AS_STARCOUNT'])
             day_or_night = data['DAY_OR_NIGHT']
-            logger.info(f"Return allsky data: camera_temp: {camera_temp}, star_count: {star_count}, day_or_night: {day_or_night}")
             return camera_temp, star_count, day_or_night
     except FileNotFoundError:
         logging.error(f"Allsky data file not found: {file_path}")

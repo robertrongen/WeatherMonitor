@@ -37,7 +37,6 @@ if GPIO_AVAILABLE:
     setup_gpio()
 
 def control_fan_heater():
-    logger.info("Entering control_fan_heater function")
     try:
         global settings
         temp_hum_url = settings["temp_hum_url"]
@@ -78,20 +77,16 @@ def control_fan_heater():
                     data["temperature"] = round(temperature, 1)
                 if humidity is not None:
                     data["humidity"] = round(humidity, 1)
-                logger.info(f"Fetched temperature: {data['temperature']}, humidity: {data['humidity']}")
             except Exception as e:
                 logger.error(f"Failed to fetch temperature and humidity: {e}")
 
         try:
             raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
             if raining is not None:
-                logger.info(f"Average rain: {raining}")
                 check_rain_alert(raining)
                 data["raining"] = raining
             if wind is not None:
-                logger.info(f"Average wind: {wind}")
                 data["wind"] = wind
-            logger.info(f"Fetched rain: {data['raining']}, wind: {data['wind']}")
         except Exception as e:
             logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
@@ -99,7 +94,6 @@ def control_fan_heater():
             cpu_temperature = get_cpu_temperature()
             if cpu_temperature is not None:
                 data["cpu_temperature"] = round(cpu_temperature, 0)
-            logger.info(f"Fetched CPU temperature: {data['cpu_temperature']}")
         except Exception as e:
             logger.error(f"Failed to fetch CPU temperature: {e}")
 
@@ -107,13 +101,10 @@ def control_fan_heater():
             camera_temp, star_count, day_or_night = get_allsky_data()
             if camera_temp is not None:
                 data["camera_temp"] = camera_temp
-                logger.info(f"Fetched camera temperature: {data['camera_temp']}")
             if star_count is not None:
                 data["star_count"] = star_count
-                logger.info(f"Fetched star count: {data['star_count']}")
             if day_or_night is not None:
                 data["day_or_night"] = day_or_night
-                logger.info(f"Fetched day or night: {data['day_or_night']}")
         except Exception as e:
             logger.error(f"Failed to fetch allsky data: {e}")
 
@@ -124,7 +115,6 @@ def control_fan_heater():
                 heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
                 data["dew_point"] = dewPoint
                 data["heat_index"] = heatIndex
-                logger.info(f"Computed dew point: {dewPoint}, heat index: {heatIndex}")
             except Exception as e:
                 logger.error(f"Failed to compute dew point or heat index: {e}")
 
@@ -138,7 +128,6 @@ def control_fan_heater():
             ) else "OFF"
 
             data["heater_status"] = "OFF" if data["temperature"] > (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "ON"
-            logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
         if GPIO_AVAILABLE:
             try:
@@ -153,7 +142,6 @@ def control_fan_heater():
             serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
             if serial_data:
                 data.update(serial_data)
-            logger.info(f"Fetched sky data: {serial_data}")
         except Exception as e:
             logger.error(f"Failed to fetch sky sensor data: {e}")
 
@@ -161,21 +149,16 @@ def control_fan_heater():
             cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
             if cloud_coverage is not None:
                 data["cloud_coverage"] = round(cloud_coverage, 2)
-                logger.info(f"Computed cloud coverage: {cloud_coverage}")
             if cloud_coverage_indicator is not None:
                 data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 2)
-                logger.info(f"Computed cloud coverage indicator: {cloud_coverage_indicator}")
             if brightness is not None:
                 data["brightness"] = round(brightness, 2)
-                logger.info(f"Computed brightness: {brightness}")
             if bortle is not None:
                 data["bortle"] = round(bortle, 2)
-                logger.info(f"Computed bortle scale: {bortle}")
         except Exception as e:
             logger.error(f"Failed to compute weather indicators: {e}")
 
         # store data
-        logger.info("Storing data")
         conn = get_db_connection()
         try:
             store_sky_data(data, conn)
@@ -184,7 +167,6 @@ def control_fan_heater():
             logger.error(f"Failed to store data: {e}")
         finally:
             conn.close()
-        logger.info("Exiting control_fan_heater function")
 
     except Exception as e:
         logger.error(f"Unexpected error in control_fan_heater: {e}")
