@@ -93,3 +93,25 @@ def get_temperature_humidity(url):
     except Exception as e:
         logger.warning(f"Failed to fetch temperature and humidity: {e}")
         return None, None
+
+def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
+    """
+    Reads the allsky data.
+    """
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            camera_temp = float(data.get("AS_TEMPERATURE_C", 0))
+            star_count = int(data.get("AS_STARCOUNT", 0))
+            day_or_night = data.get("DAY_OR_NIGHT", "UNKNOWN")
+            logging.info(f"Camera temperature: {camera_temp}°C, Star Count: {star_count}, Day or Night: {day_or_night}")
+            return camera_temp, star_count, day_or_night
+    except FileNotFoundError:
+        logging.error(f"Allsky data file not found: {file_path}")
+        return None, None, None
+    except ValueError:
+        logging.error(f"Invalid value in allsky data file: {file_path}")
+        return None, None, None
+    except Exception as e:
+        logging.error(f"Failed to read allsky data: {e}")
+        return None, None, None

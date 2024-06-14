@@ -4,7 +4,7 @@
 import time
 from settings import load_settings
 from system_monitor import get_cpu_temperature
-from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data
+from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data, get_allsky_data
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
 from store_data import store_sky_data, setup_database
@@ -62,7 +62,10 @@ def control_fan_heater():
             "cloud_coverage_indicator": None,
             "brightness": None,
             "bortle": None,
-            "wind": None
+            "wind": None,
+            "camera_temp": None,
+            "star_count": None,
+            "day_or_night": None
         }
 
         if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
@@ -93,7 +96,7 @@ def control_fan_heater():
             logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
         try:
-            serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
+            serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
             if serial_data:
                 data.update(serial_data)
             logger.info(f"Fetched sky data: {serial_data}")
@@ -108,6 +111,20 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to fetch CPU temperature: {e}")
 
+        try:
+            camera_temp, star_count, day_or_night = get_allsky_data()
+            if camera_temp is not None:
+                data["camera_temp"] = camera_temp
+                logger.info(f"Fetched camera temperature: {data['camera_temp']}")
+            if star_count is not None:
+                data["star_count"] = star_count
+                logger.info(f"Fetched star count: {data['star_count']}")
+            if day_or_night is not None:
+                data["day_or_night"] = day_or_night
+                logger.info(f"Fetched day or night: {data['day_or_night']}")
+        except Exception as e:
+            logger.error(f"Failed to fetch allsky data: {e}")
+
         if data["temperature"] is not None and data["humidity"] is not None:
             try:
                 dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
@@ -120,14 +137,15 @@ def control_fan_heater():
                 logger.error(f"Failed to compute dew point or heat index: {e}")
 
         if data["temperature"] is not None:
-            data["fan_status"] = "ON" if (
-                data["temperature"] > settings["ambient_temp_threshold"]
-                or data["temperature"] <= data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
-                or data.get("cpu_temperature", 0) > settings["cpu_temp_threshold"]
-                or data.get("memory_usage", 0) > settings["memory_usage_threshold"]
-            ) else "OFF"
+            data["fan_status"] = "OFF" if (
+                data["camera_temp"] < 25
+                or data["temperature"] < settings["ambient_temp_threshold"]
+                or data["temperature"] > data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
+                or data.get("cpu_temperature", 0) < settings["cpu_temp_threshold"]
+                or data.get("memory_usage", 0) < settings["memory_usage_threshold"]
+            ) else "ON"
 
-            data["heater_status"] = "ON" if data["temperature"] <= (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "OFF"
+            data["heater_status"] = "OFF" if data["temperature"] > (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "ON"
             logger.info(f"Fan status: {data['fan_status']}, Heater status: {data['heater_status']}")
 
         if GPIO_AVAILABLE:

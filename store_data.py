@@ -35,7 +35,10 @@ def setup_database(conn=None):
             cloud_coverage_indicator REAL,
             brightness REAL,
             bortle REAL,
-            wind REAL
+            wind REAL,
+            camera_temp INTEGER, 
+            star_count INTEGER, 
+            day_or_night TEXT
         )
     """)
 
@@ -75,9 +78,12 @@ def store_sky_data(data, conn=None):
                 cloud_coverage_indicator, 
                 brightness, 
                 bortle,
-                wind
+                wind,
+                camera_temp, 
+                star_count, 
+                day_or_night
             )
-            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             data['temperature'],
@@ -99,7 +105,10 @@ def store_sky_data(data, conn=None):
             data['cloud_coverage_indicator'],
             data['brightness'],
             data['bortle'],
-            data['wind']
+            data['wind'],
+            data['camera_temp'],
+            data['star_count'],
+            data['day_or_night']
         )
 
         # Log the prepared statement
