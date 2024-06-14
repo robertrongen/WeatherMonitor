@@ -95,14 +95,6 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
-        # try:
-        #     serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
-        #     if serial_data:
-        #         data.update(serial_data)
-        #     logger.info(f"Fetched sky data: {serial_data}")
-        # except Exception as e:
-        #     logger.error(f"Failed to fetch sky sensor data: {e}")
-
         try:
             cpu_temperature = get_cpu_temperature()
             if cpu_temperature is not None:
@@ -156,6 +148,14 @@ def control_fan_heater():
             except Exception as e:
                 logger.error(f"GPIO operation failed: {e}")
                 raise
+
+        try:
+            serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
+            if serial_data:
+                data.update(serial_data)
+            logger.info(f"Fetched sky data: {serial_data}")
+        except Exception as e:
+            logger.error(f"Failed to fetch sky sensor data: {e}")
 
         try:
             cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
