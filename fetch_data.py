@@ -102,7 +102,7 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
         with open(file_path, 'r') as file:
             data = json.load(file)
             logger.info(f"Read allsky data: camera_temp: {data['AS_TEMPERATURE_C']}, star_count: {data['AS_STARCOUNT']}, day_or_night: {data['DAY_OR_NIGHT']}")
-            camera_temp = int(ddata['AS_TEMPERATURE_C'], 0)
+            camera_temp = int(data['AS_TEMPERATURE_C'], 0)
             star_count = int(data['AS_STARCOUNT'], 0)
             day_or_night = data['DAY_OR_NIGHT']
             logging.info(f"Camera temperature: {camera_temp}°C, Star Count: {star_count}, Day or Night: {day_or_night}")
