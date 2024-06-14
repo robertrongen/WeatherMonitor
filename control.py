@@ -138,11 +138,11 @@ def control_fan_heater():
 
         if data["temperature"] is not None:
             data["fan_status"] = "OFF" if (
-                data["camera_temp"] < 25
+                (data.get("camera_temp") is not None and data["camera_temp"] < 25)
                 or data["temperature"] < settings["ambient_temp_threshold"]
                 or data["temperature"] > data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]
-                or data.get("cpu_temperature", 0) < settings["cpu_temp_threshold"]
-                or data.get("memory_usage", 0) < settings["memory_usage_threshold"]
+                or (data.get("cpu_temperature") is not None and data["cpu_temperature"] < settings["cpu_temp_threshold"])
+                or (data.get("memory_usage") is not None and data["memory_usage"] < settings["memory_usage_threshold"])
             ) else "ON"
 
             data["heater_status"] = "OFF" if data["temperature"] > (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "ON"
