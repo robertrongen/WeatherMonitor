@@ -95,13 +95,13 @@ def control_fan_heater():
         except Exception as e:
             logger.error(f"Failed to fetch rain and wind sensor data: {e}")
 
-        try:
-            serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
-            if serial_data:
-                data.update(serial_data)
-            logger.info(f"Fetched sky data: {serial_data}")
-        except Exception as e:
-            logger.error(f"Failed to fetch sky sensor data: {e}")
+        # try:
+        #     serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
+        #     if serial_data:
+        #         data.update(serial_data)
+        #     logger.info(f"Fetched sky data: {serial_data}")
+        # except Exception as e:
+        #     logger.error(f"Failed to fetch sky sensor data: {e}")
 
         try:
             cpu_temperature = get_cpu_temperature()
@@ -156,6 +156,23 @@ def control_fan_heater():
             except Exception as e:
                 logger.error(f"GPIO operation failed: {e}")
                 raise
+
+        try:
+            cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
+            if cloud_coverage is not None:
+                data["cloud_coverage"] = round(cloud_coverage, 2)
+                logger.info(f"Computed cloud coverage: {cloud_coverage}")
+            if cloud_coverage_indicator is not None:
+                data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 2)
+                logger.info(f"Computed cloud coverage indicator: {cloud_coverage_indicator}")
+            if brightness is not None:
+                data["brightness"] = round(brightness, 2)
+                logger.info(f"Computed brightness: {brightness}")
+            if bortle is not None:
+                data["bortle"] = round(bortle, 2)
+                logger.info(f"Computed bortle scale: {bortle}")
+        except Exception as e:
+            logger.error(f"Failed to compute weather indicators: {e}")
 
         # store data
         logger.info("Storing data")
