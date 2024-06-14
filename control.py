@@ -150,7 +150,7 @@ def control_fan_heater():
                 raise
 
         try:
-            serial_data = get_allsky_data(settings["serial_port_json"], settings["baud_rate"])
+            serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
             if serial_data:
                 data.update(serial_data)
             logger.info(f"Fetched sky data: {serial_data}")
