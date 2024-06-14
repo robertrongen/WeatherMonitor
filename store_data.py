@@ -36,8 +36,8 @@ def setup_database(conn=None):
             brightness REAL,
             bortle REAL,
             wind REAL,
-            camera_temp INTEGER, 
-            star_count INTEGER, 
+            camera_temp REAL, 
+            star_count REAL, 
             day_or_night TEXT
         )
     """)
