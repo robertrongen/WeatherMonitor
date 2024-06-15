@@ -114,7 +114,7 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
         logger.error(f"Allsky data file not found: {file_path}")
         return None, None, None
     except ValueError:
-        logger.error(f"Invalid value in allsky data file: {file_path}")
+        logger.error(f"Invalid value in allsky data file: {data}")
         return None, None, None
     except Exception as e:
         logger.error(f"Failed to read allsky data: {e}")
