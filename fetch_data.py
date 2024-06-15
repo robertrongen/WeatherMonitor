@@ -20,7 +20,7 @@ def get_sky_data(port, rate, timeout=120):
                 if line:
                     try:
                         data = json.loads(line)
-                        logger.info(f"Received valid JSON data: {line}")
+                        logger.info(f"Received valid sky_data: {line}")
                         return data
                     except json.JSONDecodeError:
                         logger.debug(f"Failed to decode JSON or no JSON: {line}, skipping line.")
@@ -55,6 +55,7 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
                                 _, wind_value = line.split(',')
                                 wind_intensity = float(wind_value)
                             if rain_intensity is not None and wind_intensity is not None:
+                                logger.info(f"Received valid sensor data: rain = {rain_intensity}, wind = {wind_intensity}")
                                 return rain_intensity, wind_intensity
                         except ValueError:
                             logger.error(f"Failed to parse sensor data: {line}")
@@ -111,6 +112,7 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
                     star_count = 0
             else:
                 logger.warning("Allsky data is empty.")
+            logger.info(f"Read allsky data: camera_temp = {camera_temp}, star_count = {star_count}, day_or_night = {day_or_night}")
             return camera_temp, star_count, day_or_night
     except FileNotFoundError:
         logger.error(f"Allsky data file not found: {file_path}")
