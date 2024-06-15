@@ -116,7 +116,7 @@ def store_sky_data(data, conn=None):
 
         cursor.execute(sql, params)
         conn.commit()
-        logger.info("Data stored successfully")
+        # logger.info("Data stored successfully")
     except Exception as e:
         logger.critical(f"Failed to store data: {e}")
     finally:
