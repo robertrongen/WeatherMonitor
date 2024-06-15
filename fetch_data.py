@@ -98,11 +98,18 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
     """
     try:
         with open(file_path, 'r') as file:
-            data = json.load(file)
-            camera_temp = int(data['AS_TEMPERATURE_C'])
-            star_count = int(data['AS_STARCOUNT'])
-            day_or_night = data['DAY_OR_NIGHT']
-            return camera_temp, star_count, day_or_night
+            camera_temp, star_count, day_or_night = None, None, None
+            if json.load(file) is not None:
+                data = json.load(file)
+                if data['AS_TEMPERATURE_C'] is not None: 
+                    camera_temp = int(data['AS_TEMPERATURE_C'])
+                if data['DAY_OR_NIGHT'] is not None:
+                    day_or_night = data['DAY_OR_NIGHT']
+                if day_or_night == 'NIGHT' and data['AS_STARCOUNT'] is not None:      
+                    star_count = int(data['AS_STARCOUNT'])
+                else:
+                    star_count = 0
+                return camera_temp, star_count, day_or_night
     except FileNotFoundError:
         logger.error(f"Allsky data file not found: {file_path}")
         return None, None, None
