@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Paths to log files
-LOCATION="/home/robert/github/skymonitorlogs"
+LOCATION="/home/robert/github/skymonitor/logs"
 LOG_FILES=(
     "${LOCATION}/control.log"
     "${LOCATION}/app.log"
