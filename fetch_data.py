@@ -3,7 +3,7 @@ import requests
 import serial
 import json
 import time
-from app_logger import setup_logger
+from app_logging import setup_logger
 
 logger = setup_logger('fetch_data', 'fetch_data.log')
 ser = None
