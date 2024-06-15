@@ -124,7 +124,6 @@ def control_fan_heater():
                 or data["temperature"] > settings["ambient_temp_threshold"]
                 or data["temperature"] < (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"])
                 or data["cpu_temperature"] is not None and data["cpu_temperature"] > settings["cpu_temp_threshold"]
-                or data["memory_usage"] is not None and data["memory_usage"] > settings["memory_usage_threshold"]
             ) else "OFF"
 
             data["heater_status"] = "OFF" if data["temperature"] > (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "ON"
@@ -169,7 +168,7 @@ def control_fan_heater():
             conn.close()
 
     except Exception as e:
-        logger.error(f"Unexpected error in control_fan_heater: {e}")
+        logger.error(f"Unexpected error in control_fan_heater function: {e}")
         raise
 
 if __name__ == '__main__':

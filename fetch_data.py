@@ -3,7 +3,7 @@ import requests
 import serial
 import json
 import time
-from app_logging import setup_logger
+from app_logger import setup_logger
 
 logger = setup_logger('fetch_data', 'fetch_data.log')
 ser = None
@@ -104,11 +104,11 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
             day_or_night = data['DAY_OR_NIGHT']
             return camera_temp, star_count, day_or_night
     except FileNotFoundError:
-        logging.error(f"Allsky data file not found: {file_path}")
+        logger.error(f"Allsky data file not found: {file_path}")
         return None, None, None
     except ValueError:
-        logging.error(f"Invalid value in allsky data file: {file_path}")
+        logger.error(f"Invalid value in allsky data file: {file_path}")
         return None, None, None
     except Exception as e:
-        logging.error(f"Failed to read allsky data: {e}")
+        logger.error(f"Failed to read allsky data: {e}")
         return None, None, None
