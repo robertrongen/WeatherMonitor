@@ -109,7 +109,9 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
                     star_count = int(data['AS_STARCOUNT'])
                 else:
                     star_count = 0
-                return camera_temp, star_count, day_or_night
+            else:
+                logger.warning("Allsky data is empty.")
+            return camera_temp, star_count, day_or_night
     except FileNotFoundError:
         logger.error(f"Allsky data file not found: {file_path}")
         return None, None, None
