@@ -11,6 +11,20 @@ from store_data import store_sky_data, setup_database
 from app_logging import setup_logger
 from rain_alarm import check_rain_alert
 from app import notify_new_data, get_db_connection
+from datetime import datetime, timedelta
+
+last_logged_time = {}
+log_interval = timedelta(minutes=1)  # Minimum time interval between identical log entries
+
+def should_log(message):
+    current_time = datetime.now()
+    if message in last_logged_time and current_time - last_logged_time[message] < log_interval:
+        return False
+    last_logged_time[message] = current_time
+    return True
+
+logger = setup_logger('control', 'control.log')
+settings = load_settings()  # Initial load of settings
 
 try:
     import RPi.GPIO as GPIO
@@ -19,8 +33,6 @@ except (ImportError, RuntimeError):
     print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
     GPIO_AVAILABLE = False
 
-logger = setup_logger('control', 'control.log')
-settings = load_settings()  # Initial load of settings
 
 def setup_gpio():
     if GPIO_AVAILABLE:
@@ -35,6 +47,21 @@ def setup_gpio():
 
 if GPIO_AVAILABLE:
     setup_gpio()
+
+def compute_dew_point_and_heat_index(data):
+    if 0 <= data["humidity"] <= 100:
+        try:
+            data["dew_point"] = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
+            temp = Temp(data["temperature"], 'c')
+            data["heat_index"] = round(heat_index(temp, data["humidity"]).c, 1)
+        except Exception as e:
+            error_msg = f"Failed to compute dew point or heat index for temperature {data['temperature']} and humidity {data['humidity']}: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
+    else:
+        error_msg = f"Invalid humidity value: {data['humidity']}"
+        if should_log(error_msg):
+            logger.error(error_msg)
 
 def control_fan_heater():
     try:
@@ -78,7 +105,9 @@ def control_fan_heater():
                 if humidity is not None:
                     data["humidity"] = round(humidity, 1)
             except Exception as e:
-                logger.error(f"Failed to fetch temperature and humidity: {e}")
+                error_msg = f"Failed to fetch temperature and humidity: {e}"
+                if should_log(error_msg):
+                    logger.error(error_msg)
 
         try:
             raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
@@ -88,14 +117,18 @@ def control_fan_heater():
             if wind is not None:
                 data["wind"] = wind
         except Exception as e:
-            logger.error(f"Failed to fetch rain and wind sensor data: {e}")
+            error_msg = f"Failed to fetch rain and wind sensor data: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
 
         try:
             cpu_temperature = get_cpu_temperature()
             if cpu_temperature is not None:
                 data["cpu_temperature"] = round(cpu_temperature, 0)
         except Exception as e:
-            logger.error(f"Failed to fetch CPU temperature: {e}")
+            error_msg = f"Failed to fetch CPU temperature: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
 
         try:
             camera_temp, star_count, day_or_night = get_allsky_data()
@@ -106,17 +139,12 @@ def control_fan_heater():
             if day_or_night is not None:
                 data["day_or_night"] = day_or_night
         except Exception as e:
-            logger.error(f"Failed to fetch allsky data: {e}")
+            error_msg = f"Failed to fetch allsky data: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
 
         if data["temperature"] is not None and data["humidity"] is not None:
-            try:
-                dewPoint = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
-                temp = Temp(data["temperature"], 'c')
-                heatIndex = round(heat_index(temp, data["humidity"]).c, 1)
-                data["dew_point"] = dewPoint
-                data["heat_index"] = heatIndex
-            except Exception as e:
-                logger.error(f"Failed to compute dew point or heat index: {e}")
+            compute_dew_point_and_heat_index(data)
 
         if data["temperature"] is not None:
             data["fan_status"] = "ON" if (
@@ -134,15 +162,18 @@ def control_fan_heater():
                 GPIO.output(21, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
                 GPIO.output(20, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
             except Exception as e:
-                logger.error(f"GPIO operation failed: {e}")
-                raise
+                error_msg = f"GPIO operation failed: {e}"
+                if should_log(error_msg):
+                    logger.error(error_msg)
 
         try:
             serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
             if serial_data:
                 data.update(serial_data)
         except Exception as e:
-            logger.error(f"Failed to fetch sky sensor data: {e}")
+            error_msg = f"Failed to fetch sky sensor data: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
 
         try:
             cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
@@ -155,7 +186,9 @@ def control_fan_heater():
             if bortle is not None:
                 data["bortle"] = round(bortle, 2)
         except Exception as e:
-            logger.error(f"Failed to compute weather indicators: {e}")
+            error_msg = f"Failed to compute weather indicators: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
 
         # store data
         conn = get_db_connection()
@@ -163,12 +196,16 @@ def control_fan_heater():
             store_sky_data(data, conn)
             notify_new_data()
         except Exception as e:
-            logger.error(f"Failed to store data: {e}")
+            error_msg = f"Failed to store data: {e}"
+            if should_log(error_msg):
+                logger.error(error_msg)
         finally:
             conn.close()
 
     except Exception as e:
-        logger.error(f"Unexpected error in control_fan_heater function: {e}")
+        error_msg = f"Unexpected error in control_fan_heater function: {e}"
+        if should_log(error_msg):
+            logger.error(error_msg)
         raise
 
 if __name__ == '__main__':
