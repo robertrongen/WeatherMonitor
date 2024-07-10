@@ -57,11 +57,11 @@ def compute_dew_point_and_heat_index(data):
         except Exception as e:
             error_msg = f"Failed to compute dew point or heat index for temperature {data['temperature']} and humidity {data['humidity']}: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
     else:
         error_msg = f"Invalid humidity value: {data['humidity']}"
         if should_log(error_msg):
-            logger.error(error_msg)
+            logger.warning(error_msg)
 
 def control_fan_heater():
     try:
@@ -95,7 +95,7 @@ def control_fan_heater():
         }
 
         if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
-            logger.error(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
+            logger.warning(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
             temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
         else:
             try:
@@ -107,7 +107,7 @@ def control_fan_heater():
             except Exception as e:
                 error_msg = f"Failed to fetch temperature and humidity: {e}"
                 if should_log(error_msg):
-                    logger.error(error_msg)
+                    logger.warning(error_msg)
 
         try:
             raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
@@ -119,7 +119,7 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to fetch rain and wind sensor data: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
 
         try:
             cpu_temperature = get_cpu_temperature()
@@ -128,7 +128,7 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to fetch CPU temperature: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
 
         try:
             camera_temp, star_count, day_or_night = get_allsky_data()
@@ -141,7 +141,7 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to fetch allsky data: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
 
         if data["temperature"] is not None and data["humidity"] is not None:
             compute_dew_point_and_heat_index(data)
@@ -164,7 +164,7 @@ def control_fan_heater():
             except Exception as e:
                 error_msg = f"GPIO operation failed: {e}"
                 if should_log(error_msg):
-                    logger.error(error_msg)
+                    logger.warning(error_msg)
 
         try:
             serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
@@ -173,7 +173,7 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to fetch sky sensor data: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
 
         try:
             cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
@@ -188,7 +188,7 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to compute weather indicators: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
 
         # store data
         conn = get_db_connection()
@@ -198,14 +198,14 @@ def control_fan_heater():
         except Exception as e:
             error_msg = f"Failed to store data: {e}"
             if should_log(error_msg):
-                logger.error(error_msg)
+                logger.warning(error_msg)
         finally:
             conn.close()
 
     except Exception as e:
         error_msg = f"Unexpected error in control_fan_heater function: {e}"
         if should_log(error_msg):
-            logger.error(error_msg)
+            logger.warning(error_msg)
         raise
 
 if __name__ == '__main__':
