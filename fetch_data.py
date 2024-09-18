@@ -8,7 +8,7 @@ from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')
 ser = None
 
-def get_sky_data(port, rate, timeout=120):
+def get_sky_data(port, rate, timeout=240):
     """
     Fetches JSON data from a serial device. Waits until a valid JSON is found or the timeout expires.
     """
