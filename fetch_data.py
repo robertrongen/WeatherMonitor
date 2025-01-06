@@ -49,18 +49,25 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
                     if line:
                         try:
                             if "RainSensor," in line:
-                                _, rain_value = line.split(',')
-                                rain_intensity = float(rain_value)
+                                try:
+                                    _, rain_value = line.split(',')
+                                    rain_intensity = float(rain_value)
+                                except ValueError:
+                                    print(f"Error parsing RainSensor data: {line}")
                             elif "WindSensor," in line:
-                                _, wind_value = line.split(',')
-                                wind_intensity = float(wind_value)
+                                try:
+                                    _, wind_value = line.split(',')
+                                    wind_intensity = float(wind_value)
+                                except ValueError:
+                                    print(f"Error parsing WindSensor data: {line}")
+                            
                             if rain_intensity is not None and wind_intensity is not None:
-                                # logger.info(f"Received valid sensor data: rain = {rain_intensity}, wind = {wind_intensity}")
                                 return rain_intensity, wind_intensity
-                        except ValueError:
-                            logger.error(f"Failed to parse sensor data: {line}")
-        except serial.SerialException:
-            logger.info("Serial port is busy, waiting for retry...")
+                            time.sleep(0.1)
+                        except ValueError as e:
+                            logger.error(f"Error parsing sensor data: {line} - {e}")
+        except serial.SerialException as e:
+            logger.info(f"Serial exception: {e}")
             time.sleep(retry_delay)  # Wait before trying again
 
     logger.error("Timeout reached without receiving valid sensor data.")
@@ -76,8 +83,18 @@ def get_temperature_humidity(url):
         return None, None
 
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Will raise an exception for 4XX/5XX responses
+        retries = 3
+        for i in range(retries):
+            try:
+                response = requests.get(url)
+                response.raise_for_status()  # Will raise an exception for 4XX/5XX responses
+                break
+            except requests.exceptions.RequestException:
+                if i < retries - 1:
+                    time.sleep(2 ** i)  # Backoff
+                else:
+                    logger.warning("Max retries reached for temperature/humidity API")
+
         data = response.json()
         if data:
             temperature = data[0]['temperature']

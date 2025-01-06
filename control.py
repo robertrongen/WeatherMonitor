@@ -102,7 +102,7 @@ def control_fan_heater():
                 temperature, humidity = get_temperature_humidity(temp_hum_url)
                 if temperature is not None:
                     data["temperature"] = round(temperature, 1)
-                if humidity is not None:
+                if humidity is not None and 0 <= humidity <= 100:
                     data["humidity"] = round(humidity, 1)
             except Exception as e:
                 error_msg = f"Failed to fetch temperature and humidity: {e}"
@@ -144,7 +144,7 @@ def control_fan_heater():
                 logger.warning(error_msg)
 
         if data["temperature"] is not None and data["humidity"] is not None:
-            compute_dew_point_and_heat_index(data)
+            compute_dew_point_and_heat_index(data)w
 
         if data["temperature"] is not None:
             data["fan_status"] = "ON" if (
