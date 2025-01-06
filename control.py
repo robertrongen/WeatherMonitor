@@ -144,7 +144,7 @@ def control_fan_heater():
                 logger.warning(error_msg)
 
         if data["temperature"] is not None and data["humidity"] is not None:
-            compute_dew_point_and_heat_index(data)w
+            compute_dew_point_and_heat_index(data)
 
         if data["temperature"] is not None:
             data["fan_status"] = "ON" if (
