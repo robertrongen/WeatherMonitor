@@ -35,7 +35,7 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
     """
     Reads rain and wind sensor data samples from the serial port.
     Waits until both RainSensor and WindSensor data are available or the timeout expires.
-    Retries if the serial port is busy.
+    Retries if the serial port is busy or if data is incomplete.
     """
     end_time = time.time() + timeout
     rain_intensity = None
@@ -45,36 +45,39 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
         try:
             with serial.Serial(port, rate, timeout=1) as ser:
                 while time.time() < end_time:
-                    line = ser.readline().decode('utf-8').strip()
+                    line = ser.readline().decode('utf-8', errors='replace').strip()
                     if line:
                         try:
                             if "RainSensor," in line:
                                 try:
                                     _, rain_value = line.split(',')
                                     rain_intensity = float(rain_value)
+                                    # logger.debug(f"RainSensor data: {rain_intensity}")
                                 except ValueError:
-                                    print(f"Error parsing RainSensor data: {line}")
+                                    logger.warning(f"Error parsing RainSensor data: {line}")
                             elif "WindSensor," in line:
                                 try:
                                     _, wind_value = line.split(',')
                                     wind_intensity = float(wind_value)
+                                    # logger.debug(f"WindSensor data: {wind_intensity}")
                                 except ValueError:
-                                    print(f"Error parsing WindSensor data: {line}")
+                                    logger.warning(f"Error parsing WindSensor data: {line}")
                             
-                            if rain_intensity is None:
-                                rain_intensity = 0
-                            if wind_intensity is None:
-                                rain_intensity = 0
-                            return rain_intensity, wind_intensity
-                            time.sleep(0.1)
-                        except ValueError as e:
-                            logger.error(f"Error parsing sensor data: {line} - {e}")
-        except serial.SerialException as e:
-            logger.info(f"Serial exception: {e}")
-            time.sleep(retry_delay)  # Wait before trying again
+                            # If both values are collected, return them
+                            if rain_intensity is not None and wind_intensity is not None:
+                                return rain_intensity, wind_intensity
 
-    logger.error("Timeout reached without receiving valid sensor data.")
-    return rain_intensity, wind_intensity
+                        except Exception as e:
+                            logger.error(f"Error parsing sensor data: {line} - {e}")
+
+                    time.sleep(0.1)
+
+        except serial.SerialException as e:
+            logger.warning(f"Serial exception on port {port}: {e}")
+            time.sleep(retry_delay)  # Wait before retrying
+
+    logger.error("Timeout reached without receiving complete sensor data.")
+    return rain_intensity if rain_intensity is not None else 0, wind_intensity if wind_intensity is not None else 0
 
 def get_temperature_humidity(url):
     """
