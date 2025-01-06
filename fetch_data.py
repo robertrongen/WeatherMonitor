@@ -61,8 +61,11 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
                                 except ValueError:
                                     print(f"Error parsing WindSensor data: {line}")
                             
-                            if rain_intensity is not None and wind_intensity is not None:
-                                return rain_intensity, wind_intensity
+                            if rain_intensity is None:
+                                rain_intensity = 0
+                            if wind_intensity is None:
+                                rain_intensity = 0
+                            return rain_intensity, wind_intensity
                             time.sleep(0.1)
                         except ValueError as e:
                             logger.error(f"Error parsing sensor data: {line} - {e}")
