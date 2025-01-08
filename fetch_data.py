@@ -5,23 +5,14 @@ import json
 import time
 from app_logging import setup_logger
 
-# Configure logger
-logger = logging.getLogger("fetch_data")
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
-
+logger = setup_logger('fetch_data', 'fetch_data.log', level=logging.DEBUG)
 ser = None
 
 def get_sky_data(port, rate, timeout=35):
     """
-    Fetches JSON data from a serial device. Handles decoding errors gracefully.
+    Fetches JSON data from a serial device. Ensures at least one reading before returning.
     """
     start_time = time.time()
-    last_error_time = 0  # Track the last time an error was logged
-    error_log_interval = 30  # Log decoding errors at most every 30 seconds
-
     try:
         with serial.Serial(port, rate, timeout=1) as ser:
             while time.time() - start_time < timeout:
@@ -33,21 +24,13 @@ def get_sky_data(port, rate, timeout=35):
                             logger.info(f"Received valid sky data: {data}")
                             return data
                         except json.JSONDecodeError:
-                            # Log decoding errors less frequently
-                            if time.time() - last_error_time > error_log_interval:
-                                logger.debug(f"Invalid JSON or no JSON: {line}")
-                                last_error_time = time.time()
+                            logger.debug(f"Invalid JSON or no JSON: {line}")
                 except Exception as e:
                     logger.warning(f"Error reading from serial: {e}")
                     time.sleep(1)  # Small delay before retrying to avoid rapid looping
-
             logger.warning("Timeout reached without receiving valid JSON data.")
     except serial.SerialException as e:
         logger.error(f"Serial port exception: {e}")
-    
-    return None
-
-    
     return None
 
 def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
