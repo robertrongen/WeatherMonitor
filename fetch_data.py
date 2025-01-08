@@ -14,7 +14,7 @@ logger.addHandler(ch)
 
 ser = None
 
-def get_sky_data(port, rate, timeout=55):
+def get_sky_data(port, rate, timeout=35):
     """
     Fetches JSON data from a serial device. Handles decoding errors gracefully.
     """
