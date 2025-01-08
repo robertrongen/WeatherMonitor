@@ -8,27 +8,43 @@ from app_logging import setup_logger
 logger = setup_logger('fetch_data', 'fetch_data.log')
 ser = None
 
-def get_sky_data(port, rate, timeout=240):
+def get_sky_data(port, rate, timeout=120, retry_delay=5):
     """
     Fetches JSON data from a serial device. Waits until a valid JSON is found or the timeout expires.
+    Returns the data if successful or None if the timeout is reached.
     """
     end_time = time.time() + timeout
+    last_error_time = 0  # Track the last time an error was logged to prevent spam
+
     try:
         with serial.Serial(port, rate, timeout=1) as ser:
             while time.time() < end_time:
-                line = ser.readline().decode('utf-8').strip()
-                if line:
+                try:
+                    line = ser.readline().decode('utf-8', errors='replace').strip()
+                    if not line:
+                        time.sleep(0.5)  # Avoid tight loop on empty data
+                        continue
+
                     try:
                         data = json.loads(line)
-                        # logger.info(f"Received valid sky_data: {line}")
+                        logger.info(f"Received valid sky data: {data}")
                         return data
                     except json.JSONDecodeError:
-                        logger.debug(f"Failed to decode JSON or no JSON: {line}, skipping line.")
-                time.sleep(2)
-    except serial.serialutil.SerialException:
-        logger.info("Serial port for json is busy, waiting...")
-        time.sleep(10)  # Wait a bit before trying to access the port again
-    logger.error("Timeout reached without receiving valid JSON data.")
+                        # Log decoding errors less frequently
+                        if time.time() - last_error_time > 30:  # Log at most every 30 seconds
+                            logger.debug(f"Failed to decode JSON or no JSON: {line}")
+                            last_error_time = time.time()
+
+                except Exception as e:
+                    logger.warning(f"Error reading from serial: {e}")
+                    time.sleep(retry_delay)  # Small pause before retrying
+
+        # If we exit the loop, timeout was reached
+        logger.error("Timeout reached without receiving valid JSON data.")
+    except serial.SerialException as e:
+        logger.warning(f"Serial port exception: {e}")
+        time.sleep(retry_delay)
+
     return None
 
 def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
