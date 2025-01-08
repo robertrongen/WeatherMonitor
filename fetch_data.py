@@ -5,46 +5,49 @@ import json
 import time
 from app_logging import setup_logger
 
-logger = setup_logger('fetch_data', 'fetch_data.log')
+# Configure logger
+logger = logging.getLogger("fetch_data")
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+logger.addHandler(ch)
+
 ser = None
 
-def get_sky_data(port, rate, timeout=120, retry_delay=5):
+def get_sky_data(port, rate, timeout=55):
     """
-    Fetches JSON data from a serial device. Waits until a valid JSON is found or the timeout expires.
-    Returns the data if successful or None if the timeout is reached.
+    Fetches JSON data from a serial device. Handles decoding errors gracefully.
     """
-    end_time = time.time() + timeout
-    last_error_time = 0  # Track the last time an error was logged to prevent spam
+    start_time = time.time()
+    last_error_time = 0  # Track the last time an error was logged
+    error_log_interval = 30  # Log decoding errors at most every 30 seconds
 
     try:
         with serial.Serial(port, rate, timeout=1) as ser:
-            while time.time() < end_time:
+            while time.time() - start_time < timeout:
                 try:
-                    line = ser.readline().decode('utf-8', errors='replace').strip()
-                    if not line:
-                        time.sleep(0.5)  # Avoid tight loop on empty data
-                        continue
-
-                    try:
-                        data = json.loads(line)
-                        logger.info(f"Received valid sky data: {data}")
-                        return data
-                    except json.JSONDecodeError:
-                        # Log decoding errors less frequently
-                        if time.time() - last_error_time > 30:  # Log at most every 30 seconds
-                            logger.debug(f"Failed to decode JSON or no JSON: {line}")
-                            last_error_time = time.time()
-
+                    line = ser.readline().decode('utf-8', errors='ignore').strip()  # Use 'ignore' to skip invalid bytes
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            logger.info(f"Received valid sky data: {data}")
+                            return data
+                        except json.JSONDecodeError:
+                            # Log decoding errors less frequently
+                            if time.time() - last_error_time > error_log_interval:
+                                logger.debug(f"Invalid JSON or no JSON: {line}")
+                                last_error_time = time.time()
                 except Exception as e:
                     logger.warning(f"Error reading from serial: {e}")
-                    time.sleep(retry_delay)  # Small pause before retrying
+                    time.sleep(1)  # Small delay before retrying to avoid rapid looping
 
-        # If we exit the loop, timeout was reached
-        logger.error("Timeout reached without receiving valid JSON data.")
+            logger.warning("Timeout reached without receiving valid JSON data.")
     except serial.SerialException as e:
-        logger.warning(f"Serial port exception: {e}")
-        time.sleep(retry_delay)
+        logger.error(f"Serial port exception: {e}")
+    
+    return None
 
+    
     return None
 
 def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):

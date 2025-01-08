@@ -176,15 +176,21 @@ def control_fan_heater():
                 logger.warning(error_msg)
 
         try:
-            cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"])
-            if cloud_coverage is not None:
-                data["cloud_coverage"] = round(cloud_coverage, 2)
-            if cloud_coverage_indicator is not None:
-                data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 2)
-            if brightness is not None:
-                data["brightness"] = round(brightness, 2)
-            if bortle is not None:
-                data["bortle"] = round(bortle, 2)
+            if data["ambient_temperature"] is not None and data["sky_temperature"] is not None and data["sqm_lux"] is not None:
+                cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(
+                    data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"]
+                )
+                if cloud_coverage is not None:
+                    data["cloud_coverage"] = round(cloud_coverage, 2)
+                if cloud_coverage_indicator is not None:
+                    data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 2)
+                if brightness is not None:
+                    data["brightness"] = round(brightness, 2)
+                if bortle is not None:
+                    data["bortle"] = round(bortle, 2)
+            else:
+                missing = [key for key in ["ambient_temperature", "sky_temperature", "sqm_lux"] if data[key] is None]
+                logger.warning(f"Skipping weather indicators calculation due to missing values: {missing}")
         except Exception as e:
             error_msg = f"Failed to compute weather indicators: {e}"
             if should_log(error_msg):
