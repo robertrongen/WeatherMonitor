@@ -3,6 +3,7 @@ import requests
 import serial
 import json
 import time
+import logging
 from app_logging import setup_logger, should_log
 
 logger = setup_logger('fetch_data', 'fetch_data.log', level=logging.DEBUG)

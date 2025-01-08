@@ -9,10 +9,11 @@ from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
 from store_data import store_sky_data, setup_database
 from app_logging import setup_logger, should_log
+import logging
 from rain_alarm import check_rain_alert
 from app import notify_new_data, get_db_connection
 
-logger = setup_logger('control', 'control.log')
+logger = setup_logger('control', 'control.log', level=logging.DEBUG)
 settings = load_settings()  # Initial load of settings
 
 try:
