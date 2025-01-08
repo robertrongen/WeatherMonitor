@@ -8,20 +8,9 @@ from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_dat
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
 from store_data import store_sky_data, setup_database
-from app_logging import setup_logger
+from app_logging import setup_logger, should_log
 from rain_alarm import check_rain_alert
 from app import notify_new_data, get_db_connection
-from datetime import datetime, timedelta
-
-last_logged_time = {}
-log_interval = timedelta(minutes=1)  # Minimum time interval between identical log entries
-
-def should_log(message):
-    current_time = datetime.now()
-    if message in last_logged_time and current_time - last_logged_time[message] < log_interval:
-        return False
-    last_logged_time[message] = current_time
-    return True
 
 logger = setup_logger('control', 'control.log')
 settings = load_settings()  # Initial load of settings

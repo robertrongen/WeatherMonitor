@@ -3,7 +3,7 @@ import requests
 import serial
 import json
 import time
-from app_logging import setup_logger
+from app_logging import setup_logger, should_log
 
 logger = setup_logger('fetch_data', 'fetch_data.log', level=logging.DEBUG)
 ser = None
@@ -17,23 +17,29 @@ def get_sky_data(port, rate, timeout=35):
         with serial.Serial(port, rate, timeout=1) as ser:
             while time.time() - start_time < timeout:
                 try:
-                    line = ser.readline().decode('utf-8', errors='ignore').strip()  # Use 'ignore' to skip invalid bytes
+                    line = ser.readline().decode('utf-8', errors='replace').strip()
                     if line:
                         try:
                             data = json.loads(line)
                             logger.info(f"Received valid sky data: {data}")
                             return data
                         except json.JSONDecodeError:
-                            logger.debug(f"Invalid JSON or no JSON: {line}")
+                            message = f"Invalid JSON or no JSON: {line}"
+                            if should_log(message):
+                                logger.debug(message)
                 except Exception as e:
-                    logger.warning(f"Error reading from serial: {e}")
-                    time.sleep(1)  # Small delay before retrying to avoid rapid looping
+                    message = f"Error reading from serial: {e}"
+                    if should_log(message):
+                        logger.warning(message)
+                    time.sleep(1)
             logger.warning("Timeout reached without receiving valid JSON data.")
     except serial.SerialException as e:
-        logger.error(f"Serial port exception: {e}")
+        message = f"Serial port exception: {e}"
+        if should_log(message):
+            logger.error(message)
     return None
 
-def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
+def get_rain_wind_data(port, rate, timeout=35, retry_delay=5):
     """
     Reads rain and wind sensor data samples from the serial port.
     Waits until both RainSensor and WindSensor data are available or the timeout expires.
@@ -54,32 +60,39 @@ def get_rain_wind_data(port, rate, timeout=120, retry_delay=10):
                                 try:
                                     _, rain_value = line.split(',')
                                     rain_intensity = float(rain_value)
-                                    # logger.debug(f"RainSensor data: {rain_intensity}")
                                 except ValueError:
-                                    logger.warning(f"Error parsing RainSensor data: {line}")
+                                    message = f"Error parsing RainSensor data: {line}"
+                                    if should_log(message):
+                                        logger.warning(message)
                             elif "WindSensor," in line:
                                 try:
                                     _, wind_value = line.split(',')
                                     wind_intensity = float(wind_value)
-                                    # logger.debug(f"WindSensor data: {wind_intensity}")
                                 except ValueError:
-                                    logger.warning(f"Error parsing WindSensor data: {line}")
-                            
+                                    message = f"Error parsing WindSensor data: {line}"
+                                    if should_log(message):
+                                        logger.warning(message)
+
                             # If both values are collected, return them
                             if rain_intensity is not None and wind_intensity is not None:
                                 return rain_intensity, wind_intensity
 
                         except Exception as e:
-                            logger.error(f"Error parsing sensor data: {line} - {e}")
+                            message = f"Error parsing sensor data: {line} - {e}"
+                            if should_log(message):
+                                logger.error(message)
 
                     time.sleep(0.1)
 
         except serial.SerialException as e:
-            logger.warning(f"Serial exception on port {port}: {e}")
+            message = f"Serial exception on port {port}: {e}"
+            if should_log(message):
+                logger.warning(message)
             time.sleep(retry_delay)  # Wait before retrying
 
     logger.error("Timeout reached without receiving complete sensor data.")
     return rain_intensity if rain_intensity is not None else 0, wind_intensity if wind_intensity is not None else 0
+
 
 def get_temperature_humidity(url):
     """
@@ -87,7 +100,9 @@ def get_temperature_humidity(url):
     Returns a tuple (temperature, humidity).
     """
     if not url.startswith('http'):
-        logger.error(f"Invalid URL passed to get_temperature_humidity: {url}")
+        message = f"Invalid URL passed to get_temperature_humidity: {url}"
+        if should_log(message):
+            logger.error(message)
         return None, None
 
     try:
@@ -101,7 +116,9 @@ def get_temperature_humidity(url):
                 if i < retries - 1:
                     time.sleep(2 ** i)  # Backoff
                 else:
-                    logger.warning("Max retries reached for temperature/humidity API")
+                    message = "Max retries reached for temperature/humidity API"
+                    if should_log(message):
+                        logger.warning(message)
 
         data = response.json()
         if data:
@@ -109,14 +126,21 @@ def get_temperature_humidity(url):
             humidity = data[0]['humidity']
             return round(temperature, 2), round(humidity, 2)
         else:
-            logger.warning("Received empty data from API")
+            message = "Received empty data from API"
+            if should_log(message):
+                logger.warning(message)
             return None, None
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Network-related error when fetching temperature and humidity: {e}")
+        message = f"Network-related error when fetching temperature and humidity: {e}"
+        if should_log(message):
+            logger.warning(message)
         return None, None
     except Exception as e:
-        logger.warning(f"Failed to fetch temperature and humidity: {e}")
+        message = f"Failed to fetch temperature and humidity: {e}"
+        if should_log(message):
+            logger.warning(message)
         return None, None
+
 
 def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
     """
@@ -136,15 +160,22 @@ def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
                 else:
                     star_count = 0
             else:
-                logger.warning("Allsky data is empty.")
-            # logger.info(f"Read allsky data: camera_temp = {camera_temp}, star_count = {star_count}, day_or_night = {day_or_night}")
+                message = "Allsky data is empty."
+                if should_log(message):
+                    logger.warning(message)
             return camera_temp, star_count, day_or_night
     except FileNotFoundError:
-        logger.error(f"Allsky data file not found: {file_path}")
+        message = f"Allsky data file not found: {file_path}"
+        if should_log(message):
+            logger.error(message)
         return None, None, None
     except ValueError as e:
-        logger.error(f"Invalid value in allsky data: {e}")
+        message = f"Invalid value in allsky data: {e}"
+        if should_log(message):
+            logger.error(message)
         return None, None, None
     except Exception as e:
-        logger.error(f"Failed to read allsky data: {e}")
+        message = f"Failed to read allsky data: {e}"
+        if should_log(message):
+            logger.error(message)
         return None, None, None

@@ -9,8 +9,24 @@ import smtplib
 from email.mime.text import MIMEText
 import socket
 import time
+from datetime import datetime, timedelta
 
 load_dotenv()
+
+# Track last log times for messages
+last_logged_time = {}
+log_interval = timedelta(minutes=1)  # Default log interval
+
+def should_log(message, interval=log_interval):
+    """
+    Determines if a log message should be logged based on the interval.
+    Avoids duplicate log entries within the specified interval.
+    """
+    current_time = datetime.now()
+    if message in last_logged_time and current_time - last_logged_time[message] < interval:
+        return False
+    last_logged_time[message] = current_time
+    return True
 
 def setup_handlers(logger, log_file, log_level=logging.ERROR, to_stdout=True):
     log_directory = "/home/robert/github/skymonitor/logs"
