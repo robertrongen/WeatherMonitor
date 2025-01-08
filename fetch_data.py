@@ -20,12 +20,19 @@ def get_sky_data(port, rate, timeout=35):
                 try:
                     line = ser.readline().decode('utf-8', errors='replace').strip()
                     if line:
-                        try:
-                            data = json.loads(line)
-                            logger.info(f"Received valid sky data: {data}")
-                            return data
-                        except json.JSONDecodeError:
-                            message = f"Invalid JSON or no JSON: {line}"
+                        # Only log potential JSON-looking data for clarity
+                        if "{" in line and "}" in line:
+                            try:
+                                data = json.loads(line)
+                                logger.info(f"Received valid sky data: {data}")
+                                return data
+                            except json.JSONDecodeError:
+                                message = f"Invalid JSON data: {line}"
+                                if should_log(message):
+                                    logger.debug(message)
+                        else:
+                            # Suppress non-JSON data logs unless critical
+                            message = f"Non-JSON data received: {line}"
                             if should_log(message):
                                 logger.debug(message)
                 except Exception as e:
