@@ -35,7 +35,7 @@ def get_sky_data(port, rate, timeout=35):
                     if should_log(message):
                         logger.warning(message)
                     time.sleep(1)
-            logger.warning("Timeout reached without receiving valid JSON data.")
+            # logger.warning("Timeout reached without receiving valid JSON data.")
     except serial.SerialException as e:
         message = f"Serial port exception: {e}"
         if should_log(message):
@@ -93,7 +93,7 @@ def get_rain_wind_data(port, rate, timeout=35, retry_delay=5):
                 logger.warning(message)
             time.sleep(retry_delay)  # Wait before retrying
 
-    logger.error("Timeout reached without receiving complete sensor data.")
+    # logger.error("Timeout reached without receiving complete rain/wind sensor data.")
     return rain_intensity if rain_intensity is not None else 0, wind_intensity if wind_intensity is not None else 0
 
 
