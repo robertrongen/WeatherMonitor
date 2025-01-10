@@ -14,25 +14,6 @@
 #include "cont.h"
 #include <ArduinoJson.h>
 
-// Constants for WiFi and sensors
-extern const char* ssid1;
-extern const char* password1;
-extern const char* ssid2;
-extern const char* password2;
-extern const char* ssid3;
-extern const char* password3;
-extern const char* ssid4;
-extern const char* password4;
-
-// WiFi functions
-void startWifiMulti();
-void maintainWifi();
-
-// Web server functions
-void startWebserver();
-void handleRoot();
-void handleNotFound();
-
 // Sensor functions
 void configureSensor();
 void advancedRead();
