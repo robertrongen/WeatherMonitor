@@ -100,12 +100,15 @@ def control_fan_heater():
                     logger.warning(error_msg)
 
         try:
-            raining, wind = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
-            if raining is not None:
-                check_rain_alert(raining)
-                data["raining"] = raining
-            if wind is not None:
-                data["wind"] = wind
+            # Fetch rain and wind sensor data from the Nano
+            rain_wind_data = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
+            if rain_wind_data:
+                rain_intensity, wind_speed = rain_wind_data
+                if rain_intensity is not None:
+                    check_rain_alert(rain_intensity)
+                    data["raining"] = rain_intensity
+                if wind_speed is not None:
+                    data["wind"] = wind_speed
         except Exception as e:
             error_msg = f"Failed to fetch rain and wind sensor data: {e}"
             if should_log(error_msg):
