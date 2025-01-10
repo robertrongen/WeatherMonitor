@@ -33,7 +33,7 @@ def setup_gpio():
         GPIO.setwarnings(False)  # Set GPIO warnings to false (optional, to avoid nuisance warnings)
         GPIO.setmode(GPIO.BCM)
         GPIO.setup([Relay_Ch1, Relay_Ch2, Relay_Ch3], GPIO.OUT, initial=GPIO.HIGH)
-        logger.info("GPIO setup completed")
+        # logger.info("GPIO setup completed")
 
 if GPIO_AVAILABLE:
     setup_gpio()
@@ -210,7 +210,7 @@ def control_fan_heater():
 if __name__ == '__main__':
     setup_database()
     try:
-        logger.info("Starting control loop")
+        # logger.info("Starting control loop")
         control_fan_heater()
         while True:
             start_sleep_time = time.time()
