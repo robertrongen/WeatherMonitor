@@ -1,21 +1,37 @@
 /*
     SkyMonitor Nano
     Reads wind sensor and rain sensor
-    Prints sensor data to serial port
+    Prints sensor data to serial port in JSON format
+    Allows toggling debug mode via serial commands
 */
+
 #include <Arduino.h>
 
 // Rain sensor
 #define sensorPinAnalog A0
 
 // Wind Sensor
-unsigned long lastDebounceTime = 0;  // The last time the output pin was toggled
-unsigned long debounceDelay = 100;  // The debounce time; increase if the output flickers
+unsigned long lastDebounceTime = 0;  // Last debounce time
+unsigned long debounceDelay = 100;  // Debounce delay
+int pinInterrupt = 2;               // Interrupt pin for wind sensor
+volatile int Count = 0;             // Pulse count (volatile for ISR)
 
-int pinInterrupt = 2;  // Blue - NPNR pulse output
+unsigned long previousMillis = 0;
+const long interval = 1000;         // Interval for rain sensor reading
+unsigned long startTime = 0;
+const long measurementPeriod = 5000;  // Measurement period for wind sensor
 
-volatile int Count = 0;  // Pulse count (volatile because it changes in an ISR)
+int rainReadings[5];               // Buffer for rain sensor readings
+int readingIndex = 0;
 
+// Debug Mode
+bool debugMode = false;  // Default debug mode is OFF
+
+// Debug Macros
+#define DEBUG_PRINT(x) if (debugMode) Serial.print(x)
+#define DEBUG_PRINTLN(x) if (debugMode) Serial.println(x)
+
+// Interrupt Service Routine for Wind Sensor
 void onChange() {
     if (digitalRead(pinInterrupt) == LOW) {
         Count++;
@@ -24,37 +40,29 @@ void onChange() {
 
 void setup() {
     Serial.begin(115200);
-    while (!Serial) {
-        ;  // Wait for serial port to connect. Needed for native USB
-    }
-    Serial.println("Serial of Nano connected");
+    while (!Serial);  // Wait for serial port to connect
+    DEBUG_PRINTLN("Serial of Nano connected");
 
-    // Wind sensor
-    pinMode(pinInterrupt, INPUT_PULLUP);                                      // Set the interrupt pin
-    attachInterrupt(digitalPinToInterrupt(pinInterrupt), onChange, FALLING);  // Enable interrupt on falling edge
+    // Wind sensor setup
+    pinMode(pinInterrupt, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(pinInterrupt), onChange, FALLING);
 }
 
-unsigned long previousMillis = 0;
-const long interval = 1000;  // Interval at which to read sensors
-
-unsigned long startTime = 0;
-const long measurementPeriod = 5000;  // 5-second period for wind sensor
-
-int rainReadings[5];  // Array to hold rain sensor readings
-int readingIndex = 0;
-
 void loop() {
+    handleSerialCommands();  // Check for incoming commands to toggle debug mode
+
     unsigned long currentMillis = millis();
 
+    // Perform wind and rain calculations every measurement period
     if (currentMillis - startTime >= measurementPeriod) {
         startTime = currentMillis;
 
         // Compute wind sensor value
         float windSensorValue = (Count * 8.75) / 100.0;  // Corrected calculation
-        Serial.print("WindSensor,");
-        Serial.println(windSensorValue);
+        DEBUG_PRINT("Wind pulses counted: ");
+        DEBUG_PRINTLN(Count);
 
-        // Reset pulse count for next period
+        // Reset pulse count
         Count = 0;
 
         // Compute average rain sensor value
@@ -63,24 +71,49 @@ void loop() {
             totalRain += rainReadings[i];
         }
         float averageRain = totalRain / 5.0;
-        Serial.print("RainSensor,");
-        Serial.println(averageRain);
 
-        // Reset rain readings array
-        readingIndex = 0;
+        // Generate and send JSON output
+        generateSensorJson(windSensorValue, averageRain);
     }
 
+    // Collect rain sensor readings at regular intervals
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
 
         // Read rain sensor value
         int rainSensorValue = analogRead(sensorPinAnalog);
         rainReadings[readingIndex] = rainSensorValue;
-        readingIndex++;
+        readingIndex = (readingIndex + 1) % 5;  // Wrap around
+    }
+}
 
-        // Ensure the reading index wraps around after 5 readings
-        if (readingIndex >= 5) {
-            readingIndex = 0;
+/*
+    Handles incoming serial commands to toggle debug mode.
+*/
+void handleSerialCommands() {
+    if (Serial.available() > 0) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();
+
+        if (command == "DEBUG ON") {
+            debugMode = true;
+            Serial.println("Debug mode enabled");
+        } else if (command == "DEBUG OFF") {
+            debugMode = false;
+            Serial.println("Debug mode disabled");
+        } else {
+            Serial.println("Unknown command");
         }
     }
+}
+
+/*
+    Generates a JSON string with wind and rain sensor data and sends it to the serial port.
+*/
+void generateSensorJson(float windSensorValue, float averageRain) {
+    String jsonStr = "{";
+    jsonStr += "\"wind_speed\":" + String(windSensorValue, 2) + ",";
+    jsonStr += "\"rain_intensity\":" + String(averageRain, 2);
+    jsonStr += "}";
+    Serial.println(jsonStr);  // JSON data is always sent
 }

@@ -1,0 +1,159 @@
+# SkyMonitor Firmware
+
+This repository contains the firmware for the **SkyMonitor** system, designed to monitor weather and sky conditions using two microcontroller boards:
+
+1. **ESP8266 (D1 Mini)**:
+   - Sensors: MLX90614 (IR temperature) and TSL2591 (light sensor).
+   - Outputs data as JSON over a serial port.
+   - Supports dynamic debug mode toggling via serial commands.
+
+2. **Arduino Nano**:
+   - Sensors: Wind sensor and rain sensor.
+   - Outputs data as JSON over a serial port.
+   - Supports dynamic debug mode toggling via serial commands.
+
+---
+
+## **Features**
+
+### **General Features**
+1. **JSON Output**:
+   - Sensor data is serialized into a JSON string and sent over the serial port at regular intervals.
+   - Example JSON:
+     ```json
+     {
+       "wind_speed":3.50,
+       "rain_intensity":75.40,
+       "sky_temperature":"25.50",
+       "ambient_temperature":"22.30",
+       "sqm_ir":300,
+       "sqm_full":500,
+       "sqm_visible":200,
+       "sqm_lux":100.50
+     }
+     ```
+2. **Dynamic Debug Mode**:
+   - Toggle debug messages using serial commands:
+     - `DEBUG ON`: Enables debug mode (detailed sensor data and status messages).
+     - `DEBUG OFF`: Disables debug mode (only JSON is sent).
+3. **Minimal Serial Output**:
+   - When debug mode is off, only JSON data is sent to the serial port.
+4. **Status Feedback via LED**:
+   - Steady blink: Sensors are working.
+   - Rapid blink: One or more sensors are unavailable.
+
+### **ESP8266 Features**
+- **Sensors**:
+  - **MLX90614**: Sky and ambient temperature readings.
+  - **TSL2591**: Sky quality metrics (IR, full spectrum, visible light, and lux).
+- **Reconnects to Sensors**:
+  - Automatically attempts to reconnect to sensors if they stop working.
+- **Rolling Buffer for Rain Readings**:
+  - Stores the last 5 rain readings for averaging.
+
+### **Arduino Nano Features**
+- **Sensors**:
+  - Wind sensor (pulse count for wind speed).
+  - Rain sensor (analog readings for rain intensity).
+- **Pulse Counting for Wind Sensor**:
+  - Uses an interrupt-based system to count wind pulses.
+
+---
+
+## **Usage Instructions**
+
+### **Hardware Setup**
+1. Connect the sensors to their respective boards:
+   - ESP8266: MLX90614 and TSL2591 via I2C.
+   - Arduino Nano: Wind sensor to an interrupt pin and rain sensor to an analog pin.
+2. Flash the appropriate firmware to each board using the Arduino IDE.
+3. Connect the boards to a Raspberry Pi via USB for monitoring.
+
+### **Software Setup**
+1. **Monitor Serial Output**:
+   - Use `cat` or a Python script to monitor serial output from each board:
+     ```bash
+     cat /dev/ttyUSB0  # Replace with the correct port
+     ```
+2. **Toggle Debug Mode**:
+   - Send commands via the Raspberry Pi terminal:
+     ```bash
+     echo "DEBUG ON" > /dev/ttyUSB0
+     echo "DEBUG OFF" > /dev/ttyUSB0
+     ```
+3. **Parse JSON Data**:
+   - Use a script or application to parse the JSON data for further analysis.
+
+---
+
+## **Debugging Tips**
+
+### **Common Issues**
+1. **No JSON Data**:
+   - Check if the sensors are properly connected to the I2C or analog pins.
+   - Enable debug mode (`DEBUG ON`) to view detailed error messages.
+2. **Temperature or Light Values Missing**:
+   - Verify sensor status in debug mode.
+   - Ensure sensors are initialized successfully during startup.
+3. **Serial Port Busy**:
+   - Stop any processes using the serial port:
+     ```bash
+     sudo fuser -k /dev/ttyUSB0
+     ```
+
+### **Example Debug Output**
+#### ESP8266
+```plaintext
+MLX90614 IR temp sensor initialized.
+Sky Temperature: 25.50
+Ambient Temperature: 22.30
+TSL2591 sky quality sensor initialized.
+{"sky_temperature":"25.50","ambient_temperature":"22.30","sqm_ir":300,"sqm_full":500,"sqm_visible":200,"sqm_lux":100.50}
+```
+
+#### Arduino Nano
+```plaintext
+Wind pulses counted: 25
+{"wind_speed":3.50,"rain_intensity":75.40}
+```
+
+---
+
+## **JSON Output Format**
+
+### **ESP8266**
+- `sky_temperature`: Sky temperature in degrees Celsius.
+- `ambient_temperature`: Ambient temperature in degrees Celsius.
+- `sqm_ir`: IR light level (integer).
+- `sqm_full`: Full-spectrum light level (integer).
+- `sqm_visible`: Visible light level (integer).
+- `sqm_lux`: Light intensity in lux (float).
+- Missing data: `"N/A"`.
+
+### **Arduino Nano**
+- `wind_speed`: Wind speed in meters per second (float).
+- `rain_intensity`: Average rain sensor reading (float).
+
+---
+
+## **Advanced Debugging**
+
+1. **Continuous I2C Scan**:
+   - Enable `scanDevices` in `setup()` to troubleshoot sensor connectivity.
+2. **Custom Commands**:
+   - Extend serial commands to include additional functionalities (e.g., resetting sensors).
+3. **Serial Monitoring on Raspberry Pi**:
+   - Monitor serial data:
+     ```bash
+     cat /dev/ttyUSB0
+     ```
+   - Send test commands to toggle debug mode:
+     ```bash
+     echo "DEBUG ON" > /dev/ttyUSB0
+     ```
+
+---
+
+## **License**
+This firmware is open-source and available for modification and redistribution. Refer to the LICENSE file for details.
+
