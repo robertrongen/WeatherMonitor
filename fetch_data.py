@@ -51,7 +51,7 @@ from app_logging import setup_logger, should_log
 
 logger = setup_logger('fetch_data', 'fetch_data.log', level=logging.DEBUG)
 
-def get_rain_wind_data(port, rate, timeout=15):
+def get_rain_wind_data(port, rate, timeout=35):
     """
     Fetches JSON data from the Arduino Nano's serial output.
     Waits until valid JSON is received or the timeout expires.
