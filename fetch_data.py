@@ -56,6 +56,7 @@ def get_rain_wind_data(port, rate, timeout=15):
     Fetches JSON data from the Arduino Nano's serial output.
     Waits until valid JSON is received or the timeout expires.
     """
+    logger.debug(f"Attempting to fetch rain/wind data at {time.time()}")
     start_time = time.time()
     try:
         with serial.Serial(port, rate, timeout=1) as ser:
