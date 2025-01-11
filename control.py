@@ -213,9 +213,12 @@ if __name__ == '__main__':
         # logger.info("Starting control loop")
         control_fan_heater()
         while True:
-            start_sleep_time = time.time()
+            start_time = time.time()  # Capture start time
             control_fan_heater()
-            time.sleep(max(settings["sleep_time"] - (time.time() - start_time), 0)) 
+            elapsed_time = time.time() - start_time
+            sleep_time = max(settings["sleep_time"] - elapsed_time, 0)
+            logger.info(f"Slept for {sleep_time} seconds")
+            time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         logger.info("Program stopped by user")
