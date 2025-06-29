@@ -59,7 +59,7 @@ def get_rain_wind_data(port, rate, timeout=35):
     logger.debug(f"Attempting to fetch rain/wind data at {time.time()}")
     start_time = time.time()
     try:
-        with serial.Serial(port, rate, timeout=1) as ser:
+        with serial.Serial(port, rate, timeout=35) as ser:
             while time.time() - start_time < timeout:
                 try:
                     line = ser.readline().decode('utf-8', errors='replace').strip()
@@ -95,7 +95,7 @@ def get_sky_data(port, rate, timeout=35):
     """
     start_time = time.time()
     try:
-        with serial.Serial(port, rate, timeout=1) as ser:
+        with serial.Serial(port, rate, timeout=35) as ser:
             while time.time() - start_time < timeout:
                 try:
                     line = ser.readline().decode('utf-8', errors='replace').strip()
