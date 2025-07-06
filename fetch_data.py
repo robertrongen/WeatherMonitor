@@ -42,15 +42,6 @@ def get_sky_data(port, rate, timeout=35):
             logger.error(message)
     return None
 
-import requests
-import serial
-import json
-import time
-import logging
-from app_logging import setup_logger, should_log
-
-logger = setup_logger('fetch_data', 'fetch_data.log', level=logging.DEBUG)
-
 def get_rain_wind_data(port, rate, timeout=35):
     """
     Fetches JSON data from the Arduino Nano's serial output.
@@ -122,7 +113,6 @@ def get_sky_data(port, rate, timeout=35):
             logger.error(message)
     return None
 
-
 def get_temperature_humidity(url):
     """
     Fetch temperature and humidity from an external API or sensor.
@@ -136,6 +126,7 @@ def get_temperature_humidity(url):
 
     try:
         retries = 3
+        response = None
         for i in range(retries):
             try:
                 response = requests.get(url)
@@ -149,27 +140,23 @@ def get_temperature_humidity(url):
                     if should_log(message):
                         logger.warning(message)
 
-        data = response.json()
-        if data:
-            temperature = data[0]['temperature']
-            humidity = data[0]['humidity']
-            return round(temperature, 2), round(humidity, 2)
-        else:
-            message = "Received empty data from API"
-            if should_log(message):
-                logger.warning(message)
-            return None, None
-    except requests.exceptions.RequestException as e:
-        message = f"Network-related error when fetching temperature and humidity: {e}"
-        if should_log(message):
-            logger.warning(message)
+        if response:
+            try:
+                data = response.json()
+                if data:
+                    temperature = data[0].get('temperature')
+                    humidity = data[0].get('humidity')
+                    return round(temperature, 2), round(humidity, 2)
+                else:
+                    logger.warning("Received empty data from API")
+            except Exception as e:
+                logger.warning(f"JSON parse failed: {e}")
         return None, None
     except Exception as e:
-        message = f"Failed to fetch temperature and humidity: {e}"
+        message = f"Failed to fetch temperature/humidity data: {e}"
         if should_log(message):
-            logger.warning(message)
+            logger.error(message)
         return None, None
-
 
 def get_allsky_data(file_path='/home/robert/allsky/tmp/allskydata.json'):
     """
