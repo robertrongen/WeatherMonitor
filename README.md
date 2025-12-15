@@ -1,4 +1,22 @@
-# Skymonitor Project
+# AllSky Safety Monitor
+
+**Raspberry Pi observatory safety system with environmental sensors**
+
+## Project Structure
+
+```
+skymonitor/
+├─ safety-monitor/          # Raspberry Pi Python application
+├─ firmware/
+│  ├─ allsky-sensors/       # ESP32+RFM95 LoRa sensor node
+│  ├─ legacy/               # Archived Arduino+ESP8266 USB serial firmware
+│  └─ display-client/       # LILYGO T-Display client
+├─ docs/                    # Architecture and design documentation
+├─ admin/                   # Administrative scripts
+└─ fritzing/                # Legacy circuit diagrams
+```
+
+See [`docs/architecture/ARCHITECTURE_PLAN_V2.md`](docs/architecture/ARCHITECTURE_PLAN_V2.md) for system architecture.
 
 ## Installation
 
@@ -26,6 +44,7 @@ Create and fill in `.env` keys using `example.env` for:
    ```
 4. Reinstall all your packages:
    ```bash
+   cd safety-monitor
    pip install -r requirements.txt
    ```
 5. Update requirements after installing new packages:
@@ -42,6 +61,8 @@ Create and fill in `.env` keys using `example.env` for:
    ```
 
 ## Define Services
+
+**Note:** Application files are now in `safety-monitor/` subdirectory. Update service file paths accordingly.
 
 ### For `app.py` - Runs Flask Webserver for `/` and `/settings` with DNS to `skymonitor.local`
 ### For `control.py` - Manages `control_fan_heater()`, gets and stores sensor data according to schedule, controls fan and dew heater, and calls `rain_alarm`
@@ -76,8 +97,8 @@ After=network.target
 [Service]
 Type=simple
 User=robert
-WorkingDirectory=/home/user/skymonitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/app.py
+WorkingDirectory=/home/user/skymonitor/safety-monitor
+ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/app.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -96,8 +117,8 @@ After=network.target
 [Service]
 Type=simple
 User=robert
-WorkingDirectory=/home/user/skymonitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/control.py
+WorkingDirectory=/home/user/skymonitor/safety-monitor
+ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/control.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -140,7 +161,7 @@ On RPi:
 ### Testing and Bug Fixing
 
 #### On Development Laptop:
-- Use `python3 serial_test_data.py` to generate serial data and follow port setting instructions.
+- Use `python3 safety-monitor/test/serial_test_data.py` to generate serial data and follow port setting instructions.
 
 #### On RPi (Remote Session):
 1. Activate venv:
@@ -153,6 +174,8 @@ On RPi:
    - Under the Execute commands, modify the command line to use the Python interpreter from your virtual environment:
      ```bash
      ~/github/skymonitor/venv/bin/python "%f"
+
+   **Note:** If running files from `safety-monitor/`, adjust path to `~/github/skymonitor/safety-monitor/`
      ```
 
 3. Check log files using:
@@ -215,8 +238,8 @@ After=network.target
 [Service]
 Type=simple
 User=robert
-WorkingDirectory=/home/user/skymonitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/system_monitor.py
+WorkingDirectory=/home/user/skymonitor/safety-monitor
+ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/system_monitor.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -241,6 +264,7 @@ WantedBy=multi-user.target
 ### Testing the API
 1. Start your Flask application:
    ```bash
+   cd safety-monitor
    python app.py
    ```
 
