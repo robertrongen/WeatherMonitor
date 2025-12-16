@@ -1,12 +1,46 @@
 # AllSky Safety Monitor - Revised Modular Architecture Plan (v2)
 
-**Status:** Revised Draft for Review  
-**Date:** 2025-12-15  
-**Mode:** Architect Mode - Analysis and Design Only
+**Status:** Updated for Heltec WiFi LoRa 32 V2 (Board #4)
+**Date:** 2025-12-16
+**Mode:** Architecture Reference Document
 
 ---
 
-## REVISION SUMMARY
+## ⚠️ CANONICAL HARDWARE BASELINE (Updated 2025-12
+
+-16)
+
+**IMPORTANT:** This architecture has been finalized with **Heltec WiFi LoRa 32 V2** (Board #4) as the canonical sensor node hardware, replacing the previous generic ESP32 DevKit + external RFM95 design.
+
+### Key Architectural Changes
+
+1. **Integrated LoRa Radio** - Eliminates external SPI wiring (factory-integrated SX1276)
+2. **Separate I²C Buses** - Sensors use GPIO21/22 (isolated from display bus GPIO4/15)
+3. **Built-in OLED Display** - Field diagnostics without serial cable
+4. **Reduced Assembly Complexity** - Single board vs dual-board design
+5. **Smaller Enclosure** - Compact footprint (~50mm × 25mm)
+
+### Canonical Pin Definitions
+
+**For complete hardware specifications and wiring guide, see:**
+- **Board Architecture:** [`board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md`](board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md)
+- **Wiring Guide:** [`board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md`](board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md)
+
+**Quick Reference - External Sensor Pins:**
+
+| Sensor | GPIO | Signal | Notes |
+|--------|------|--------|-------|
+| MLX90614 (I²C) | GPIO21 (SDA), GPIO22 (SCL) | I²C 0x5A | **Separate sensor bus** |
+| TSL2591 (I²C) | GPIO21 (SDA), GPIO22 (SCL) | I²C 0x29 | **Separate sensor bus** |
+| RG-9 Rain (Analog) | GPIO36 | ADC | Voltage divider 5V→3.3V |
+| Wind (Pulse) | GPIO34 | Interrupt | Optocoupler 10-30V→3.3V |
+| Wind (RS485 Alt) | GPIO17 (RX), GPIO23 (TX) | UART2 | MAX485 transceiver |
+
+**Legacy Hardware:** Previous ESP32 DevKit + external RFM95 documentation has been moved to [`legacy/HARDWARE_WIRING_STRATEGY.md`](legacy/HARDWARE_WIRING_STRATEGY.md) for reference.
+
+---
+
+## REVISION SUMMARY (Original v2 - 2025-12-15)
 
 **Key Changes from v1:**
 1. **Removed assumption of local LoRa receiver on Raspberry Pi**

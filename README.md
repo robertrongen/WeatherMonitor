@@ -8,15 +8,36 @@
 skymonitor/
 ├─ safety-monitor/          # Raspberry Pi Python application
 ├─ firmware/
-│  ├─ allsky-sensors/       # ESP32+RFM95 LoRa sensor node
+│  ├─ allsky-sensors/       # Heltec WiFi LoRa 32 V2 sensor node
 │  ├─ legacy/               # Archived Arduino+ESP8266 USB serial firmware
 │  └─ display-client/       # LILYGO T-Display client
-├─ docs/                    # Architecture and design documentation
+├─ docs/
+│  ├─ architecture/
+│  │  ├─ board-esp32-lora-display/  # Board #4 specifications (CANONICAL)
+│  │  ├─ legacy/                     # Superseded designs
+│  │  └─ governance/                 # Project management
+│  └─ reference/
 ├─ admin/                   # Administrative scripts
 └─ fritzing/                # Legacy circuit diagrams
 ```
 
-See [`docs/architecture/ARCHITECTURE_PLAN_V2.md`](docs/architecture/ARCHITECTURE_PLAN_V2.md) for system architecture.
+### Current Sensor Node Hardware
+
+**Board #4: Heltec WiFi LoRa 32 V2** (integrated SX1276 LoRa + OLED display)
+
+**Documentation:**
+- **Architecture:** [`docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md`](docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md)
+- **Wiring Guide:** [`docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md`](docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md)
+- **System Architecture:** [`docs/architecture/ARCHITECTURE_PLAN_V2.md`](docs/architecture/ARCHITECTURE_PLAN_V2.md)
+- **Legacy Designs:** [`docs/architecture/legacy/`](docs/architecture/legacy/)
+
+**Sensors:**
+1. RG-9 Rain Sensor (analog, GPIO36 with voltage divider)
+2. RS485 Wind Sensor (pulse mode GPIO34 OR UART2 GPIO17/23)
+3. MLX90614 IR Temperature (I²C 0x5A on GPIO21/22)
+4. TSL2591 Sky Quality Meter (I²C 0x29 on GPIO21/22)
+
+**Note:** Sensors use dedicated I²C bus (GPIO21/22), separate from OLED display bus (GPIO4/15).
 
 ## Installation
 
