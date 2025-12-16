@@ -8,3 +8,4 @@ flask_session/*
 *.log
 launch.json
 *.db
+skymonitor.code-workspace

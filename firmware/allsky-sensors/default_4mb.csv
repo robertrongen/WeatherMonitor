@@ -1,0 +1,20 @@
+# Name,Type,SubType,Offset,Size,Flags
+# Note: if you have increased the bootloader size of the code sample above
+# 4MB, you may need to increase the bootloader offset, to avoid overlap
+nvs,data,nvs,0x9000,20k,
+phy_init,data,phy,0xf000,4k,
+factory,app,factory,0x10000,1M,
+# 0x100000 (1MB) mark (esp32default4mb.csv)
+# This section can be used to store OTA updates
+ota_0,app,ota_0,0x110000,1M,
+ota_1,app,ota_1,0x210000,1M,
+# 0x300000 (3MB) mark (esp32default4mb.csv)
+# This custom partition can be used to store data in SPIFFS format
+# spiffs,data,spiffs,0x310000,848k,
+# 0x4FB000 mark (esp32default4mb.csv)
+# this partition can be used for 'core dump' flash logging
+# coredump,data,coredump,0x4FB000,256k,
+# 0x5FB000 mark (esp32default4mb.csv)
+# this partition can be used for 'nvs' data storage
+# nvs,data,nvs,0x5FB000,20k,
+# 0x615000 mark (esp32default4mb.csv)

@@ -1,0 +1,28 @@
+ENVIRONMENT = WINDOWS_11
+EDITOR = VS_CODE
+OS = WINDOWS
+SHELL = POWERSHELL
+
+# Windows file system rules
+PATH_STYLE = WINDOWS
+BASE_USER_PATH = C:\Users\ronge
+USE_WINDOWS_PATHS = TRUE
+
+# Python & Docker
+PYTHON = py
+DOCKER = docker.exe
+NO_SUDO = TRUE
+
+# PlatformIO
+PLATFORMIO_EXEC = C:\Users\ronge\.platformio\penv\Scripts\platformio.exe
+PLATFORMIO_RUN = C:\Users\ronge\.platformio\penv\Scripts\platformio.exe run
+PLATFORMIO_UPLOAD = C:\Users\ronge\.platformio\penv\Scripts\platformio.exe run --target upload
+PLATFORMIO_UPLOADFS = C:\Users\ronge\.platformio\penv\Scripts\platformio.exe run --target uploadfs
+
+# Behavioral instructions
+- Always generate PowerShell commands.
+- Never use Linux commands (sudo, chmod, rm -rf, /home/...).
+- Never assume a Linux shell or Unix permissions.
+- Always use Windows paths (C:\..., .\...).
+- Always reference PlatformIO using PLATFORMIO_EXEC and PLATFORMIO_RUN.
+- Never output bare 'pio run' or 'pio' commands.
