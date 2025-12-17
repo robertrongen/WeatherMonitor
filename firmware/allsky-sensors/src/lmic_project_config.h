@@ -15,5 +15,6 @@
 #define DISABLE_PING 1
 #define DISABLE_BEACONS 1
 
-// Enable USB serial debug output
-//#define LMIC_PRINTF_TO Serial
+// Enable USB serial debug output for OTAA diagnostics
+#define LMIC_PRINTF_TO Serial
+#define LMIC_DEBUG_LEVEL 2

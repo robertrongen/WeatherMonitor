@@ -1,33 +1,37 @@
 /*
  * AllSky Sensors - Heltec WiFi LoRa 32 V2 Firmware
- * 
+ * BUILD VERSION: 1.0.2 - FIELD TEST MODE (NO SERIAL)
+ *
  * Hardware: Heltec WiFi LoRa 32 V2 (ESP32-PICO-D4 + SX1276 LoRa + OLED)
  * Backend: The Things Network (TTN) v3 or Chirpstack
- * 
+ *
  * Integrated Components (Pre-wired):
  * - LoRa Radio: SX1276 (868/915 MHz) internally connected via SPI
  * - OLED Display: 0.96" SSD1306 (I²C 0x3C) for field diagnostics
- * 
+ * - Status LED: GPIO25 (for field test mode visual feedback)
+ *
  * External Sensors (GPIO21/22 I²C bus - separate from display):
  * - MLX90614 IR Temperature Sensor (I²C 0x5A)
  * - TSL2591 Sky Quality Meter (I²C 0x29)
  * - RG-9 Rain Sensor (Analog GPIO36 with voltage divider)
- * - Wind Sensor (Pulse mode GPIO34 with optocoupler)
- * 
+ * - Wind Sensor (Pulse mode GPIO32 with optocoupler - moved from GPIO34 to avoid LoRa DIO conflict)
+ *
  * Pin Mappings (Heltec WiFi LoRa 32 V2):
  * LoRa SPI (internal):    GPIO5 (SCK), GPIO19 (MISO), GPIO27 (MOSI)
  * LoRa Control (internal): GPIO18 (CS), GPIO14 (RST), GPIO26 (DIO0), GPIO33 (DIO1)
  * Display I²C (internal):  GPIO4 (SDA), GPIO15 (SCL), GPIO16 (RST)
  * Sensor I²C (external):   GPIO21 (SDA), GPIO22 (SCL)
  * Rain ADC:                GPIO36 (ADC1_CH0) with 5.1kΩ/10kΩ divider
- * Wind Pulse:              GPIO34 (input-only, interrupt)
- * 
+ * Wind Pulse:              GPIO32 (interrupt, moved from GPIO34 to avoid DIO2 conflict)
+ * Status LED:              GPIO25 (for field test mode)
+ *
  * Architecture: docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md
  * Wiring: docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md
  */
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
 #include <lmic.h>
 #include <hal/hal.h>
 #include <SSD1306Wire.h>
@@ -72,17 +76,23 @@ void os_getDevKey (u1_t* buf) {
 #define RAIN_PIN 36  // GPIO36 (ADC1_CH0)
 
 // Wind Sensor (Pulse Interrupt)
-#define WIND_PIN 34  // GPIO34 (input-only, interrupt)
+// NOTE: Moved from GPIO34 to GPIO32 to avoid conflict with LoRa DIO pins
+// GPIO34 is input-only and close to SX1276 internal routing
+#define WIND_PIN 32  // GPIO32 (safe for interrupt, no LoRa conflict)
 
-// LoRa Pin Mapping (Heltec WiFi LoRa 32 V2 - integrated SX1276)
+// Status LED for Field Test Mode
+#define STATUS_LED 25  // GPIO25 (Heltec V2 onboard LED)
+
+// LoRa Pin Mapping (Heltec WiFi LoRa 32 V2 - aligned with BSP)
+// These pins are hardware-wired on the Heltec board - do NOT change
 const lmic_pinmap lmic_pins = {
-    .nss = 18,         // GPIO18 (CS)
+    .nss = 18,         // GPIO18 (LoRa CS) - Heltec hardwired
     .rxtx = LMIC_UNUSED_PIN,
-    .rst = 14,         // GPIO14 (RST)
-    .dio = {26, 33, LMIC_UNUSED_PIN},  // GPIO26 (DIO0), GPIO33 (DIO1)
-    .rxtx_rx_active = 0,  // polarity (0=rx_active makes rxtx low)
+    .rst = 14,         // GPIO14 (LoRa RST) - Heltec hardwired
+    .dio = {26, 35, 34},  // DIO0=26, DIO1=35, DIO2=34 (Heltec V2 wiring)
+    .rxtx_rx_active = 0,
     .rssi_cal = 10,
-    .spi_freq = 8000000  // 8 MHz SPI
+    .spi_freq = 8000000  // 8 MHz SPI (standard for SX1276)
 };
 
 // ============================================================================
@@ -97,7 +107,7 @@ Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 
 // Sensor I²C Bus (separate from display)
-TwoWire sensorWire = TwoWire(0);  // Use I2C bus 0 for sensors
+TwoWire sensorWire = TwoWire(1);  // Use I2C bus 1 for sensors
 
 // ============================================================================
 // SENSOR DATA STRUCTURE
@@ -161,6 +171,43 @@ bool transmitting = false;
 uint32_t nextTransmissionTime = 0;
 const uint32_t TX_INTERVAL_MS = 60000;  // 60 seconds
 
+// Loop diagnostic counters
+uint32_t loopCount = 0;
+uint32_t lastLoopLog = 0;
+const uint32_t LOOP_LOG_INTERVAL_MS = 5000;  // Log every 5 seconds
+
+// ============================================================================
+// FIELD TEST MODE STATE
+// ============================================================================
+
+// Field test mode counters
+uint32_t joinAttempts = 0;
+uint32_t txCount = 0;
+uint32_t lastJoinAttempt = 0;
+
+// Field test mode display state
+bool fieldTestModeActive = true;
+uint32_t lastFieldTestUpdate = 0;
+const uint32_t FIELD_TEST_REFRESH_MS = 500;  // 2Hz refresh rate (500ms)
+char fieldTestLine1[32] = "";
+char fieldTestLine2[32] = "";
+char fieldTestLine3[32] = "";
+char fieldTestLine4[32] = "";
+
+// Current LoRaWAN state for field test display
+enum LoRaState {
+    STATE_INIT,
+    STATE_BOOT,
+    STATE_JOINING,
+    STATE_JOIN_TX,
+    STATE_JOINED,
+    STATE_JOIN_FAILED,
+    STATE_TX,
+    STATE_LINK_DEAD
+};
+
+LoRaState currentLoRaState = STATE_INIT;
+
 // ============================================================================
 // DISPLAY MANAGEMENT
 // ============================================================================
@@ -219,6 +266,113 @@ void displayCheck() {
 }
 
 // ============================================================================
+// LED BLINK FUNCTIONS (Field Test Mode)
+// ============================================================================
+
+void ledBlink(int duration_ms = 200) {
+    digitalWrite(STATUS_LED, HIGH);
+    delay(duration_ms);
+    digitalWrite(STATUS_LED, LOW);
+}
+
+void ledBlinkTx() {
+    // Quick double blink for TX
+    ledBlink(100);
+    delay(50);
+    ledBlink(100);
+}
+
+void ledBlinkJoined() {
+    // Triple blink for successful join
+    for (int i = 0; i < 3; i++) {
+        ledBlink(150);
+        delay(100);
+    }
+}
+
+// ============================================================================
+// FIELD TEST MODE DISPLAY
+// ============================================================================
+
+void fieldTestModeUpdate() {
+    if (!fieldTestModeActive) return;
+    
+    // Non-blocking 2Hz refresh
+    if (millis() - lastFieldTestUpdate < FIELD_TEST_REFRESH_MS) {
+        return;
+    }
+    lastFieldTestUpdate = millis();
+    
+    // Update display based on current LoRaWAN state
+    switch (currentLoRaState) {
+        case STATE_INIT:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.2");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "FIELD TEST MODE");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "Initializing...");
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_BOOT:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.2");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "BOOT OK");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "Starting LoRaWAN...");
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_JOINING:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "JOINING (%lu)", joinAttempts);
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "Attempting OTAA...");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "TTN Network");
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_JOIN_TX:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "JOIN TX OK");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "Wait for JOINED");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "RX Window");
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_JOINED:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "JOINED!");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "DevAddr: %08lX", LMIC.devaddr);
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "TX Count: %lu", txCount);
+            snprintf(fieldTestLine4, sizeof(fieldTestLine4), "Ready for uplink");
+            break;
+            
+        case STATE_JOIN_FAILED:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "JOIN FAIL");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "Retry %lu", joinAttempts);
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "Check TTN config");
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_TX:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "UPLINK #%lu", txCount);
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "TX in progress...");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "RSSI: %d dBm", sensorData.rssi);
+            fieldTestLine4[0] = '\0';
+            break;
+            
+        case STATE_LINK_DEAD:
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "LINK DEAD");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "Reconnecting...");
+            snprintf(fieldTestLine3, sizeof(fieldTestLine3), "TX Count: %lu", txCount);
+            fieldTestLine4[0] = '\0';
+            break;
+    }
+    
+    // Update OLED display
+    displayUpdate(fieldTestLine1, fieldTestLine2, fieldTestLine3, fieldTestLine4);
+}
+
+void fieldTestModeSetState(LoRaState newState) {
+    currentLoRaState = newState;
+    // Force immediate update on state change
+    lastFieldTestUpdate = 0;
+}
+
+// ============================================================================
 // SENSOR ACQUISITION
 // ============================================================================
 
@@ -226,24 +380,41 @@ void sensorsInit() {
     Serial.println("Initializing sensors on GPIO21/22 I²C bus...");
     
     // Initialize sensor I²C bus (GPIO21=SDA, GPIO22=SCL)
-    sensorWire.begin(SENSOR_SDA, SENSOR_SCL, 100000);  // 100kHz
-    
-    // MLX90614 IR Temperature Sensor
-    sensorData.mlx_valid = mlx.begin(MLX90614_I2CADDR, &sensorWire);
-    if (sensorData.mlx_valid) {
-        Serial.println("✓ MLX90614 initialized (0x5A)");
+    // Use Wire1 instead of Wire to avoid conflicts with display
+    if (!sensorWire.begin(SENSOR_SDA, SENSOR_SCL, 100000)) {
+        Serial.println("✗ Failed to initialize sensor I²C bus!");
+        sensorData.mlx_valid = false;
+        sensorData.tsl_valid = false;
     } else {
-        Serial.println("✗ MLX90614 not found!");
+        Serial.println("✓ Sensor I²C bus initialized");
     }
     
-    // TSL2591 Sky Quality Meter
-    sensorData.tsl_valid = tsl.begin(&sensorWire);
-    if (sensorData.tsl_valid) {
-        tsl.setGain(TSL2591_GAIN_LOW);  // 1x gain for bright sky
-        tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);
-        Serial.println("✓ TSL2591 initialized (0x29)");
+    // MLX90614 IR Temperature Sensor (with timeout protection)
+    if (sensorWire.available()) {
+        sensorData.mlx_valid = mlx.begin(MLX90614_I2CADDR, &sensorWire);
+        if (sensorData.mlx_valid) {
+            Serial.println("✓ MLX90614 initialized (0x5A)");
+        } else {
+            Serial.println("✗ MLX90614 not found!");
+        }
     } else {
-        Serial.println("✗ TSL2591 not found!");
+        Serial.println("✗ MLX90614 skipped (I²C bus error)");
+        sensorData.mlx_valid = false;
+    }
+    
+    // TSL2591 Sky Quality Meter (with timeout protection)
+    if (sensorWire.available()) {
+        sensorData.tsl_valid = tsl.begin(&sensorWire);
+        if (sensorData.tsl_valid) {
+            tsl.setGain(TSL2591_GAIN_LOW);  // 1x gain for bright sky
+            tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);
+            Serial.println("✓ TSL2591 initialized (0x29)");
+        } else {
+            Serial.println("✗ TSL2591 not found!");
+        }
+    } else {
+        Serial.println("✗ TSL2591 skipped (I²C bus error)");
+        sensorData.tsl_valid = false;
     }
     
     // Rain Sensor (Analog ADC)
@@ -255,7 +426,7 @@ void sensorsInit() {
     pinMode(WIND_PIN, INPUT);
     attachInterrupt(digitalPinToInterrupt(WIND_PIN), windPulseISR, FALLING);
     sensorData.wind_valid = true;
-    Serial.println("✓ Wind sensor on GPIO34");
+    Serial.println("✓ Wind sensor on GPIO32");
 }
 
 void sensorsRead() {
@@ -492,27 +663,31 @@ void onEvent(ev_t ev) {
             break;
         case EV_JOINING:
             Serial.println("EV_JOINING");
-            displayUpdate("LoRaWAN", "Joining...");
+            joinAttempts++;
+            lastJoinAttempt = millis();
+            fieldTestModeSetState(STATE_JOINING);
             break;
         case EV_JOINED:
             Serial.println("EV_JOINED");
             joined = true;
             LMIC_setLinkCheckMode(0);
-            displayUpdate("LoRaWAN", "JOINED", "Ready to TX");
+            fieldTestModeSetState(STATE_JOINED);
+            ledBlinkJoined();  // Triple blink for successful join
             // Schedule first transmission
             nextTransmissionTime = millis() + 5000;  // 5 seconds after join
             break;
         case EV_JOIN_FAILED:
             Serial.println("EV_JOIN_FAILED");
-            displayUpdate("LoRaWAN", "JOIN FAILED", "Retrying...");
+            fieldTestModeSetState(STATE_JOIN_FAILED);
             break;
         case EV_REJOIN_FAILED:
             Serial.println("EV_REJOIN_FAILED");
-            displayUpdate("LoRaWAN", "REJOIN FAILED");
+            fieldTestModeSetState(STATE_JOIN_FAILED);
             break;
         case EV_TXCOMPLETE:
-            Serial.println("EV_TXCOMPLETE");
+            Serial.println("EV_TXCOMPLETE (TXDONE IRQ received)");
             transmitting = false;
+            txCount++;  // Increment TX counter
             
             // Capture signal quality
             sensorData.rssi = LMIC.rssi;
@@ -520,9 +695,10 @@ void onEvent(ev_t ev) {
             
             Serial.printf("RSSI: %d dBm, SNR: %d dB\n", sensorData.rssi, sensorData.snr);
             
-            char buf[32];
-            snprintf(buf, sizeof(buf), "TX OK RSSI:%d", sensorData.rssi);
-            displayUpdate("LoRaWAN", buf);
+            // Return to JOINED state after successful TX
+            if (joined) {
+                fieldTestModeSetState(STATE_JOINED);
+            }
             
             if (LMIC.txrxFlags & TXRX_ACK) {
                 Serial.println("Received ACK");
@@ -545,19 +721,35 @@ void onEvent(ev_t ev) {
             break;
         case EV_LINK_DEAD:
             Serial.println("EV_LINK_DEAD");
-            displayUpdate("LoRaWAN", "LINK DEAD");
+            fieldTestModeSetState(STATE_LINK_DEAD);
             break;
         case EV_LINK_ALIVE:
             Serial.println("EV_LINK_ALIVE");
-            displayUpdate("LoRaWAN", "LINK ALIVE");
+            if (joined) {
+                fieldTestModeSetState(STATE_JOINED);
+            }
             break;
         case EV_TXSTART:
             Serial.println("EV_TXSTART");
             displayWake();
-            displayUpdate("LoRaWAN", "Transmitting...");
+            fieldTestModeSetState(STATE_TX);
+            ledBlinkTx();  // Double blink for TX start
+            break;
+        case EV_TXCANCELED:
+            Serial.println("EV_TXCANCELED");
+            if (joined) {
+                fieldTestModeSetState(STATE_JOINED);
+            }
+            break;
+        case EV_RXSTART:
+            Serial.println("EV_RXSTART");
+            break;
+        case EV_JOIN_TXCOMPLETE:
+            Serial.println("EV_JOIN_TXCOMPLETE");
+            fieldTestModeSetState(STATE_JOIN_TX);
             break;
         default:
-            Serial.printf("Unknown event: %u\n", ev);
+            Serial.printf("Unknown event: %u\n", (unsigned)ev);
             break;
     }
 }
@@ -598,16 +790,26 @@ void setup() {
     delay(500);
     
     Serial.println("\n\n=== AllSky Sensors - Heltec WiFi LoRa 32 V2 ===");
+    Serial.println("BUILD VERSION: 1.0.2 - FIELD TEST MODE (NO SERIAL)");
     Serial.println("Hardware: ESP32-PICO-D4 + SX1276 LoRa + OLED");
     Serial.printf("Boot completed at %lu ms\n\n", millis());
     
+    // Initialize status LED for field test mode
+    pinMode(STATUS_LED, OUTPUT);
+    digitalWrite(STATUS_LED, LOW);
+    Serial.println("✓ Status LED initialized (GPIO25)");
+    
     // Initialize display
     displayInit();
-    displayUpdate("AllSky", "Booting...");
+    fieldTestModeSetState(STATE_INIT);
+    delay(1000);
     
     // Initialize sensors
     sensorsInit();
-    displayUpdate("AllSky", "Sensors OK");
+    delay(1000);
+    
+    // Set boot state
+    fieldTestModeSetState(STATE_BOOT);
     delay(1000);
     
     // Check TTN credentials
@@ -635,11 +837,68 @@ void setup() {
     }
     
     Serial.println("TTN credentials detected");
+    
+    // Print credentials for TTN verification BEFORE join
+    Serial.println("\n=== TTN CREDENTIAL VERIFICATION ===");
+    Serial.println("Compare these values with your TTN Console:\n");
+    
+    // DevEUI - LMIC expects LSB format, TTN shows both formats
+    Serial.print("DevEUI (LSB->MSB as stored): ");
+    for (int i = 0; i < 8; i++) {
+        Serial.printf("%02X", DEVEUI[i]);
+        if (i < 7) Serial.print("-");
+    }
+    Serial.println();
+    
+    Serial.print("DevEUI (MSB->LSB reversed):   ");
+    for (int i = 7; i >= 0; i--) {
+        Serial.printf("%02X", DEVEUI[i]);
+        if (i > 0) Serial.print("-");
+    }
+    Serial.println(" ← Use this if TTN shows MSB format\n");
+    
+    // AppEUI/JoinEUI - LMIC expects LSB format
+    Serial.print("AppEUI (LSB->MSB as stored): ");
+    for (int i = 0; i < 8; i++) {
+        Serial.printf("%02X", APPEUI[i]);
+        if (i < 7) Serial.print("-");
+    }
+    Serial.println();
+    
+    Serial.print("AppEUI (MSB->LSB reversed):   ");
+    for (int i = 7; i >= 0; i--) {
+        Serial.printf("%02X", APPEUI[i]);
+        if (i > 0) Serial.print("-");
+    }
+    Serial.println(" ← Use this if TTN shows MSB format\n");
+    
+    // AppKey - MSB format (NOT reversed)
+    Serial.print("AppKey (MSB as-is):          ");
+    for (int i = 0; i < 16; i++) {
+        Serial.printf("%02X", APPKEY[i]);
+        if (i < 15) Serial.print("-");
+    }
+    Serial.println(" ← Must match TTN exactly\n");
+    
+    Serial.println("TTN Console Notes:");
+    Serial.println("- DevEUI & AppEUI: Toggle 'LSB' in TTN Console, copy-paste to secrets.h");
+    Serial.println("- AppKey: Use default MSB format from TTN Console");
+    Serial.println("- If join fails, verify byte order and check TTN Live Data tab");
+    Serial.println("===================================\n");
+    
     Serial.println("Initializing LoRaWAN...\n");
     
+    // Initialize SPI explicitly for Heltec V2 BEFORE os_init()
+    // SCK=GPIO5, MISO=GPIO19, MOSI=GPIO27 (hardware-wired to SX1276)
+    SPI.begin(5, 19, 27);
+    Serial.println("✓ SPI initialized (SCK=5, MISO=19, MOSI=27)");
+    
     // Initialize LMIC
+    Serial.println("Calling os_init()...");
     os_init();
+    Serial.println("✓ LMIC initialized");
     LMIC_reset();
+    Serial.println("✓ LMIC reset complete");
     
     // EU868 channels configured by library - no manual setup needed for LMIC 3.x
     
@@ -648,7 +907,7 @@ void setup() {
     LMIC_setDrTxpow(DR_SF7, 14);
     
     Serial.println("Starting OTAA join...");
-    displayUpdate("LoRaWAN", "Starting Join...");
+    // Field test mode will show join state automatically via onEvent()
     
     // Start join
     LMIC_startJoining();
@@ -659,8 +918,22 @@ void setup() {
 // ============================================================================
 
 void loop() {
-    // Run LMIC scheduler
+    // Increment loop counter for diagnostics
+    loopCount++;
+    
+    // Periodic loop execution confirmation
+    if (millis() - lastLoopLog >= LOOP_LOG_INTERVAL_MS) {
+        Serial.printf("[LOOP] Running normally - %lu iterations in last %lu ms\n",
+                      loopCount, millis() - lastLoopLog);
+        loopCount = 0;
+        lastLoopLog = millis();
+    }
+    
+    // Run LMIC scheduler (time-critical, must not be blocked)
     os_runloop_once();
+    
+    // Update field test mode display (non-blocking 2Hz refresh)
+    fieldTestModeUpdate();
     
     // Check display timeout
     displayCheck();
@@ -670,6 +943,6 @@ void loop() {
         do_send(&sendjob);
     }
     
-    // Small delay to prevent watchdog
-    delay(10);
+    // No delay - LMIC requires continuous servicing for RX windows
+    // Watchdog is automatically handled by yield() inside os_runloop_once()
 }
