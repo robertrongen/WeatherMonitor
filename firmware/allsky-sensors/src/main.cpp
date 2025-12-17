@@ -239,9 +239,9 @@ uint32_t lastWifiAttemptTime = 0;
 const uint32_t WIFI_RETRY_INTERVAL_MS = 10000;  // 10 seconds between retries
 const uint32_t WIFI_CONNECTION_TIMEOUT_MS = 30000;  // 30 seconds to connect
 
-// Auto-activation threshold for Wi-Fi fallback
-const uint8_t AUTO_WIFI_AFTER_N_FAILURES = 10;
-uint8_t consecutiveJoinFails = 0;
+// Auto-activation threshold for Wi-Fi fallback (10 failed transmission cycles)
+const uint8_t AUTO_WIFI_AFTER_N_CYCLE_FAILURES = 10;
+uint8_t consecutiveCycleFails = 0;
 
 // ============================================================================
 // BUTTON STATE (Button User on GPIO0)
@@ -414,7 +414,7 @@ void handleWifiStatus() {
     json += "  \"lora_joined\": " + String(joined ? "true" : "false") + ",\n";
     json += "  \"last_join_attempt\": " + String(lastJoinAttempt / 1000) + ",\n";
     json += "  \"join_attempts\": " + String(joinAttempts) + ",\n";
-    json += "  \"consecutive_fails\": " + String(consecutiveJoinFails) + ",\n";
+    json += "  \"consecutive_cycle_fails\": " + String(consecutiveCycleFails) + ",\n";
     json += "  \"tx_count\": " + String(txCount) + ",\n";
     json += "  \"sensors\": {\n";
     
@@ -479,8 +479,10 @@ void wifiFallbackStart() {
     delay(500);
     
     // Start Wi-Fi
-    Serial.println("[WIFI] Connecting to Wi-Fi...");
-    displayUpdate("WI-FI FALLBACK", "Connecting...", WIFI_SSID);
+    Serial.printf("[WIFI] Connecting to Wi-Fi: %s\n", WIFI_SSID);
+    char connectMsg[32];
+    snprintf(connectMsg, sizeof(connectMsg), "Connecting to %s", WIFI_SSID);
+    displayUpdate("WI-FI FALLBACK", connectMsg);
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -499,7 +501,7 @@ void wifiFallbackStart() {
         wifiConnected = true;
         currentMode = MODE_WIFI_FALLBACK;
         
-        Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("[WIFI] Connected to %s on %s\n", WIFI_SSID, WiFi.localIP().toString().c_str());
         
         // Start HTTP server
         wifiServer.on("/status", handleWifiStatus);
@@ -508,10 +510,12 @@ void wifiFallbackStart() {
         Serial.println("[WIFI] HTTP server started on port 80");
         Serial.println("[WIFI] Access /status endpoint for sensor data");
         
-        // Update display
+        // Update display with connection info
+        char connectedMsg[32];
+        snprintf(connectedMsg, sizeof(connectedMsg), "Connected to %s", WIFI_SSID);
         displayUpdate("WIFI FALLBACK",
+                     connectedMsg,
                      WiFi.localIP().toString().c_str(),
-                     "GET /status",
                      "Hold 8s to exit");
         displayOn = true;  // Keep display on in Wi-Fi mode
     } else {
@@ -554,7 +558,7 @@ void wifiFallbackStop() {
     
     LMIC_reset();
     LMIC_startJoining();
-    consecutiveJoinFails = 0;  // Reset failure counter
+    consecutiveCycleFails = 0;  // Reset failure counter
     
     Serial.println("[LORA] Resumed LoRa operation");
 }
@@ -861,7 +865,7 @@ uint8_t encodePayload(uint8_t* buffer) {
     
     // Sky temperature (int16, °C * 100)
     int16_t sky_temp_scaled = (int16_t)(sensorData.sky_temperature * 100.0f);
-buffer[idx++] = (sky_temp_scaled >> 8) & 0xFF;
+    buffer[idx++] = (sky_temp_scaled >> 8) & 0xFF;
     buffer[idx++] = sky_temp_scaled & 0xFF;
     
     // Ambient temperature (int16, °C * 100)
@@ -953,7 +957,7 @@ void onEvent(ev_t ev) {
         case EV_JOINED:
             Serial.println("EV_JOINED");
             joined = true;
-            consecutiveJoinFails = 0;  // Reset failure counter on successful join
+            consecutiveCycleFails = 0;  // Reset failure counter on successful join
             LMIC_setLinkCheckMode(0);
             fieldTestModeSetState(STATE_JOINED);
             ledBlinkJoined();  // Triple blink for successful join
@@ -962,34 +966,30 @@ void onEvent(ev_t ev) {
             break;
         case EV_JOIN_FAILED:
             Serial.println("EV_JOIN_FAILED");
-            consecutiveJoinFails++;
-            Serial.printf("[LORA] Consecutive join failures: %u / %u\n",
-                         consecutiveJoinFails, AUTO_WIFI_AFTER_N_FAILURES);
             fieldTestModeSetState(STATE_JOIN_FAILED);
-            
-            // Auto-activate Wi-Fi fallback after N failures
-            if (consecutiveJoinFails >= AUTO_WIFI_AFTER_N_FAILURES && !wifiFallbackEnabled) {
-                Serial.println("[LORA] Too many join failures - auto-enabling Wi-Fi fallback");
-                wifiFallbackEnabled = true;
-            }
+            // Note: Join failures will be counted as cycle failures in do_send
             break;
         case EV_REJOIN_FAILED:
             Serial.println("EV_REJOIN_FAILED");
-            consecutiveJoinFails++;
-            Serial.printf("[LORA] Consecutive join failures: %u / %u\n",
-                         consecutiveJoinFails, AUTO_WIFI_AFTER_N_FAILURES);
             fieldTestModeSetState(STATE_JOIN_FAILED);
-            
-            // Auto-activate Wi-Fi fallback after N failures
-            if (consecutiveJoinFails >= AUTO_WIFI_AFTER_N_FAILURES && !wifiFallbackEnabled) {
-                Serial.println("[LORA] Too many join failures - auto-enabling Wi-Fi fallback");
-                wifiFallbackEnabled = true;
-            }
+            // Note: Join failures will be counted as cycle failures in do_send
             break;
         case EV_TXCOMPLETE:
             Serial.println("EV_TXCOMPLETE (TXDONE IRQ received)");
             transmitting = false;
             txCount++;  // Increment TX counter
+            
+            // Track transmission cycle success
+            static bool awaitingTXComplete = false;
+            if (awaitingTXComplete) {
+                // Successfully completed transmission cycle
+                Serial.println("[LORA] Transmission cycle completed successfully");
+                consecutiveCycleFails = 0;  // Reset failure counter
+                awaitingTXComplete = false;
+            } else {
+                // Unexpected TX complete without pending cycle
+                Serial.println("[LORA] TX complete without pending cycle");
+            }
             
             // Capture signal quality
             sensorData.rssi = LMIC.rssi;
@@ -1042,6 +1042,18 @@ void onEvent(ev_t ev) {
             if (joined) {
                 fieldTestModeSetState(STATE_JOINED);
             }
+            
+            // Track transmission cycle failure
+            Serial.println("[LORA] Transmission cycle failed - TX canceled");
+            consecutiveCycleFails++;
+            Serial.printf("[LORA] Consecutive transmission failures: %u / %u\n", 
+                         consecutiveCycleFails, AUTO_WIFI_AFTER_N_CYCLE_FAILURES);
+            
+            // Auto-activate Wi-Fi fallback after N cycle failures
+            if (consecutiveCycleFails >= AUTO_WIFI_AFTER_N_CYCLE_FAILURES && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Too many transmission failures - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
             break;
         case EV_RXSTART:
             Serial.println("EV_RXSTART");
@@ -1076,6 +1088,10 @@ void do_send(osjob_t* j) {
     uint8_t payloadLen = encodePayload(payload);
     
     Serial.printf("Encoded %u bytes, queueing for transmission\n", payloadLen);
+    
+    // Track transmission cycle for failure counting
+    static bool awaitingTXComplete = false;
+    awaitingTXComplete = true;  // Mark that we're awaiting TX completion
     
     // Queue packet
     LMIC_setTxData2(1, payload, payloadLen, 0);
@@ -1259,6 +1275,32 @@ void loop() {
         
         // Update field test mode display (non-blocking 2Hz refresh)
         fieldTestModeUpdate();
+        
+        // Track transmission timeouts (failed cycles)
+        static uint32_t lastTXStartTime = 0;
+        if (transmitting && lastTXStartTime == 0) {
+            lastTXStartTime = millis();  // Mark TX start
+        }
+        if (!transmitting) {
+            lastTXStartTime = 0;  // Clear when TX completes
+        }
+        
+        // Check for TX timeout (no response for 120 seconds)
+        if (transmitting && lastTXStartTime > 0 && 
+            millis() - lastTXStartTime > 120000) {  // 2 minute timeout
+            Serial.println("[LORA] TX timeout - transmission cycle failed");
+            transmitting = false;
+            consecutiveCycleFails++;
+            Serial.printf("[LORA] Consecutive transmission failures: %u / %u\n", 
+                         consecutiveCycleFails, AUTO_WIFI_AFTER_N_CYCLE_FAILURES);
+            lastTXStartTime = 0;
+            
+            // Auto-activate Wi-Fi fallback after N cycle failures
+            if (consecutiveCycleFails >= AUTO_WIFI_AFTER_N_CYCLE_FAILURES && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Too many transmission failures - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
+        }
         
         // Transmission scheduling
         if (joined && !transmitting && millis() >= nextTransmissionTime) {

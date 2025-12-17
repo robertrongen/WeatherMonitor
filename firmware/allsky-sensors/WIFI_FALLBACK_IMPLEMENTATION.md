@@ -89,10 +89,18 @@ System Modes:
 **Note**: Sensor values are `null` if sensor is invalid/offline.
 
 ### OLED Display in Wi-Fi Mode
+
+**During Connection:**
+```
+Line 1: WI-FI FALLBACK
+Line 2: Connecting to [SSID]
+```
+
+**After Connected:**
 ```
 Line 1: WIFI FALLBACK
-Line 2: 192.168.1.123 (IP address)
-Line 3: GET /status
+Line 2: Connected to [SSID]
+Line 3: 192.168.1.123 (IP address)
 Line 4: Hold 8s to exit
 ```
 
