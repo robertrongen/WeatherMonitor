@@ -33,4 +33,9 @@ static const unsigned char APPKEY[16] = {
   0x1E, 0x2B, 0x3C, 0x4D
 };
 
+// Wi-Fi Fallback Credentials (optional - for emergency fallback mode)
+// Replace with your Wi-Fi network credentials
+static const char* WIFI_SSID = "Wodan";
+static const char* WIFI_PASSWORD = "u$UpB22&";
+
 #endif // SECRETS_H

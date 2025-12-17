@@ -44,6 +44,11 @@ static const uint8_t APPEUI[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0
 static const uint8_t APPKEY[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
+// Wi-Fi Fallback Credentials (optional - for emergency fallback mode)
+// These are used when LoRa join fails repeatedly or when manually activated
+static const char* WIFI_SSID = "YourWiFiSSID";
+static const char* WIFI_PASSWORD = "YourWiFiPassword";
+
 /*
  * OTAA Configuration Notes:
  * 

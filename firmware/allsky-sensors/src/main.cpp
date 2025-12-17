@@ -1,9 +1,10 @@
 /*
  * AllSky Sensors - Heltec WiFi LoRa 32 V2 Firmware
- * BUILD VERSION: 1.0.2 - FIELD TEST MODE (NO SERIAL)
+ * BUILD VERSION: 1.0.3 - WI-FI FALLBACK MODE
  *
  * Hardware: Heltec WiFi LoRa 32 V2 (ESP32-PICO-D4 + SX1276 LoRa + OLED)
  * Backend: The Things Network (TTN) v3 or Chirpstack
+ * Fallback: Wi-Fi HTTP server with JSON status endpoint
  *
  * Integrated Components (Pre-wired):
  * - LoRa Radio: SX1276 (868/915 MHz) internally connected via SPI
@@ -24,6 +25,7 @@
  * Rain ADC:                GPIO36 (ADC1_CH0) with 5.1kΩ/10kΩ divider
  * Wind Pulse:              GPIO32 (interrupt, moved from GPIO34 to avoid DIO2 conflict)
  * Status LED:              GPIO25 (for field test mode)
+ * Button User:             GPIO0 (PRG button, for mode control)
  *
  * Architecture: docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md
  * Wiring: docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md
@@ -37,6 +39,8 @@
 #include <SSD1306Wire.h>
 #include <Adafruit_MLX90614.h>
 #include <Adafruit_TSL2591.h>
+#include <WiFi.h>
+#include <WebServer.h>
 #include "secrets.h"
 
 // ============================================================================
@@ -83,6 +87,9 @@ void os_getDevKey (u1_t* buf) {
 // Status LED for Field Test Mode
 #define STATUS_LED 25  // GPIO25 (Heltec V2 onboard LED)
 
+// Button User (PRG button on Heltec V2)
+#define BUTTON_PIN 0   // GPIO0 (PRG button on Heltec V2)
+
 // LoRa Pin Mapping (Heltec WiFi LoRa 32 V2 - aligned with BSP)
 // These pins are hardware-wired on the Heltec board - do NOT change
 const lmic_pinmap lmic_pins = {
@@ -108,6 +115,9 @@ Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 
 // Sensor I²C Bus (separate from display)
 TwoWire sensorWire = TwoWire(1);  // Use I2C bus 1 for sensors
+
+// Wi-Fi Fallback Web Server (only active in fallback mode)
+WebServer wifiServer(80);
 
 // ============================================================================
 // SENSOR DATA STRUCTURE
@@ -209,6 +219,63 @@ enum LoRaState {
 LoRaState currentLoRaState = STATE_INIT;
 
 // ============================================================================
+// SYSTEM STATE MACHINE (LoRa vs Wi-Fi Fallback)
+// ============================================================================
+
+// System-level state machine (separate from LoRaWAN state)
+enum SystemMode {
+    MODE_LORA_ACTIVE,      // LoRa is primary transport (normal mode)
+    MODE_WIFI_FALLBACK,    // Wi-Fi fallback is active (LoRa stopped)
+    MODE_SWITCHING         // Transitioning between modes
+};
+
+SystemMode currentMode = MODE_LORA_ACTIVE;
+
+// Wi-Fi Fallback State
+bool wifiFallbackEnabled = false;
+bool wifiConnected = false;
+uint32_t wifiConnectionAttempt = 0;
+uint32_t lastWifiAttemptTime = 0;
+const uint32_t WIFI_RETRY_INTERVAL_MS = 10000;  // 10 seconds between retries
+const uint32_t WIFI_CONNECTION_TIMEOUT_MS = 30000;  // 30 seconds to connect
+
+// Auto-activation threshold for Wi-Fi fallback
+const uint8_t AUTO_WIFI_AFTER_N_FAILURES = 10;
+uint8_t consecutiveJoinFails = 0;
+
+// ============================================================================
+// BUTTON STATE (Button User on GPIO0)
+// ============================================================================
+
+volatile uint32_t buttonPressTime = 0;
+volatile bool buttonPressed = false;
+volatile bool buttonReleased = false;
+uint32_t lastButtonDebounce = 0;
+const uint32_t BUTTON_DEBOUNCE_MS = 50;
+
+// Button press thresholds
+const uint32_t SHORT_PRESS_MS = 50;       // Minimum for valid press
+const uint32_t LONG_PRESS_MS = 3000;      // 3 seconds for Wi-Fi fallback
+const uint32_t VERY_LONG_PRESS_MS = 8000; // 8 seconds for restart
+
+void IRAM_ATTR buttonISR() {
+    uint32_t now = millis();
+    if (now - lastButtonDebounce < BUTTON_DEBOUNCE_MS) {
+        return;  // Ignore bounces
+    }
+    lastButtonDebounce = now;
+    
+    if (digitalRead(BUTTON_PIN) == LOW) {
+        // Button pressed (active low)
+        buttonPressed = true;
+        buttonPressTime = now;
+    } else {
+        // Button released
+        buttonReleased = true;
+    }
+}
+
+// ============================================================================
 // DISPLAY MANAGEMENT
 // ============================================================================
 
@@ -291,6 +358,222 @@ void ledBlinkJoined() {
 }
 
 // ============================================================================
+// BUTTON HANDLER
+// ============================================================================
+
+void buttonCheck() {
+    // Check if button was released
+    if (buttonReleased) {
+        buttonReleased = false;
+        uint32_t pressDuration = millis() - buttonPressTime;
+        
+        Serial.printf("[BUTTON] Released after %lu ms\n", pressDuration);
+        
+        // Very long press: Disable Wi-Fi fallback and restart
+        if (pressDuration >= VERY_LONG_PRESS_MS) {
+            Serial.println("[BUTTON] VERY LONG PRESS - Restart requested");
+            displayUpdate("RESTART", "Rebooting...", "Wi-Fi disabled");
+            delay(2000);
+            ESP.restart();
+        }
+        // Long press: Enable Wi-Fi fallback mode
+        else if (pressDuration >= LONG_PRESS_MS) {
+            Serial.println("[BUTTON] LONG PRESS - Enable Wi-Fi fallback");
+            if (currentMode != MODE_WIFI_FALLBACK) {
+                wifiFallbackEnabled = true;
+            } else {
+                Serial.println("[BUTTON] Already in Wi-Fi fallback mode");
+            }
+        }
+        // Short press: Force immediate LoRa join attempt
+        else if (pressDuration >= SHORT_PRESS_MS) {
+            Serial.println("[BUTTON] SHORT PRESS - Force LoRa join");
+            if (currentMode == MODE_LORA_ACTIVE && !joined) {
+                displayUpdate("BUTTON", "Force LoRa join", "Attempting now...");
+                LMIC_startJoining();
+            } else if (joined) {
+                Serial.println("[BUTTON] Already joined to LoRa");
+                displayUpdate("BUTTON", "Already joined!", "No action needed");
+            } else {
+                Serial.println("[BUTTON] Not in LoRa mode");
+            }
+        }
+        
+        buttonPressed = false;
+    }
+}
+
+// ============================================================================
+// WI-FI FALLBACK MODE
+// ============================================================================
+
+// Wi-Fi HTTP Status Endpoint Handler
+void handleWifiStatus() {
+    String json = "{\n";
+    json += "  \"uptime_seconds\": " + String(millis() / 1000) + ",\n";
+    json += "  \"lora_joined\": " + String(joined ? "true" : "false") + ",\n";
+    json += "  \"last_join_attempt\": " + String(lastJoinAttempt / 1000) + ",\n";
+    json += "  \"join_attempts\": " + String(joinAttempts) + ",\n";
+    json += "  \"consecutive_fails\": " + String(consecutiveJoinFails) + ",\n";
+    json += "  \"tx_count\": " + String(txCount) + ",\n";
+    json += "  \"sensors\": {\n";
+    
+    if (sensorData.mlx_valid) {
+        json += "    \"sky_temp_c\": " + String(sensorData.sky_temperature, 2) + ",\n";
+        json += "    \"ambient_temp_c\": " + String(sensorData.ambient_temperature, 2) + ",\n";
+    } else {
+        json += "    \"sky_temp_c\": null,\n";
+        json += "    \"ambient_temp_c\": null,\n";
+    }
+    
+    if (sensorData.tsl_valid) {
+        json += "    \"sqm_lux\": " + String(sensorData.sqm_lux, 2) + ",\n";
+        json += "    \"sqm_ir\": " + String(sensorData.sqm_ir) + ",\n";
+        json += "    \"sqm_full\": " + String(sensorData.sqm_full) + ",\n";
+    } else {
+        json += "    \"sqm_lux\": null,\n";
+        json += "    \"sqm_ir\": null,\n";
+        json += "    \"sqm_full\": null,\n";
+    }
+    
+    if (sensorData.rain_valid) {
+        json += "    \"rain_intensity\": " + String(sensorData.rain_intensity) + ",\n";
+    } else {
+        json += "    \"rain_intensity\": null,\n";
+    }
+    
+    if (sensorData.wind_valid) {
+        json += "    \"wind_speed_ms\": " + String(sensorData.wind_speed, 2) + "\n";
+    } else {
+        json += "    \"wind_speed_ms\": null\n";
+    }
+    
+    json += "  }\n";
+    json += "}\n";
+    
+    wifiServer.send(200, "application/json", json);
+}
+
+// Start Wi-Fi fallback mode
+void wifiFallbackStart() {
+    Serial.println("\n=== STARTING WI-FI FALLBACK MODE ===");
+    
+    // Set mode to switching
+    currentMode = MODE_SWITCHING;
+    displayUpdate("WI-FI FALLBACK", "Stopping LoRa...");
+    
+    // Stop LoRa cleanly if active
+    if (joined) {
+        Serial.println("[WIFI] Shutting down LoRa session...");
+        // LMIC doesn't have explicit shutdown, but we can stop scheduling
+        joined = false;
+        transmitting = false;
+    }
+    
+    // Stop LMIC scheduler
+    Serial.println("[WIFI] Stopping LMIC...");
+    // Note: LMIC_shutdown() may not exist in all LMIC versions
+    // We rely on not calling os_runloop_once() to stop LMIC activity
+    
+    // Give LoRa time to settle
+    delay(500);
+    
+    // Start Wi-Fi
+    Serial.println("[WIFI] Connecting to Wi-Fi...");
+    displayUpdate("WI-FI FALLBACK", "Connecting...", WIFI_SSID);
+    
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    
+    wifiConnectionAttempt = millis();
+    
+    // Wait for connection (non-blocking in loop will handle timeout)
+    uint32_t connectStart = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - connectStart < WIFI_CONNECTION_TIMEOUT_MS) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        wifiConnected = true;
+        currentMode = MODE_WIFI_FALLBACK;
+        
+        Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+        
+        // Start HTTP server
+        wifiServer.on("/status", handleWifiStatus);
+        wifiServer.begin();
+        
+        Serial.println("[WIFI] HTTP server started on port 80");
+        Serial.println("[WIFI] Access /status endpoint for sensor data");
+        
+        // Update display
+        displayUpdate("WIFI FALLBACK",
+                     WiFi.localIP().toString().c_str(),
+                     "GET /status",
+                     "Hold 8s to exit");
+        displayOn = true;  // Keep display on in Wi-Fi mode
+    } else {
+        Serial.println("[WIFI] Connection FAILED");
+        displayUpdate("WIFI FAILED", "Check credentials", "Retrying LoRa...");
+        wifiFallbackEnabled = false;
+        currentMode = MODE_LORA_ACTIVE;
+        delay(3000);
+        
+        // Restart LoRa
+        LMIC_reset();
+        LMIC_startJoining();
+    }
+}
+
+// Stop Wi-Fi fallback and return to LoRa mode
+void wifiFallbackStop() {
+    Serial.println("\n=== STOPPING WI-FI FALLBACK MODE ===");
+    
+    currentMode = MODE_SWITCHING;
+    displayUpdate("SWITCHING", "Stopping Wi-Fi...");
+    
+    // Stop HTTP server
+    wifiServer.stop();
+    Serial.println("[WIFI] HTTP server stopped");
+    
+    // Disconnect Wi-Fi
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(500);
+    
+    wifiConnected = false;
+    wifiFallbackEnabled = false;
+    
+    Serial.println("[WIFI] Wi-Fi stopped");
+    
+    // Restart LoRa
+    currentMode = MODE_LORA_ACTIVE;
+    displayUpdate("LORA MODE", "Restarting LoRa...");
+    
+    LMIC_reset();
+    LMIC_startJoining();
+    consecutiveJoinFails = 0;  // Reset failure counter
+    
+    Serial.println("[LORA] Resumed LoRa operation");
+}
+
+// Wi-Fi fallback loop handler (called from main loop)
+void wifiFallbackLoop() {
+    if (currentMode == MODE_WIFI_FALLBACK && wifiConnected) {
+        wifiServer.handleClient();
+        
+        // Check for connection loss
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("[WIFI] Connection lost, attempting reconnect...");
+            wifiConnected = false;
+            wifiFallbackStart();  // Try to reconnect
+        }
+    }
+}
+
+// ============================================================================
 // FIELD TEST MODE DISPLAY
 // ============================================================================
 
@@ -306,17 +589,17 @@ void fieldTestModeUpdate() {
     // Update display based on current LoRaWAN state
     switch (currentLoRaState) {
         case STATE_INIT:
-            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.2");
-            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "FIELD TEST MODE");
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.3");
+            snprintf(fieldTestLine2, sizeof(fieldTestLine2), "WIFI FALLBACK MODE");
             snprintf(fieldTestLine3, sizeof(fieldTestLine3), "Initializing...");
             fieldTestLine4[0] = '\0';
             break;
             
         case STATE_BOOT:
-            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.2");
+            snprintf(fieldTestLine1, sizeof(fieldTestLine1), "BUILD: 1.0.3");
             snprintf(fieldTestLine2, sizeof(fieldTestLine2), "BOOT OK");
             snprintf(fieldTestLine3, sizeof(fieldTestLine3), "Starting LoRaWAN...");
-            fieldTestLine4[0] = '\0';
+            snprintf(fieldTestLine4, sizeof(fieldTestLine4), "BTN: Force join");
             break;
             
         case STATE_JOINING:
@@ -670,6 +953,7 @@ void onEvent(ev_t ev) {
         case EV_JOINED:
             Serial.println("EV_JOINED");
             joined = true;
+            consecutiveJoinFails = 0;  // Reset failure counter on successful join
             LMIC_setLinkCheckMode(0);
             fieldTestModeSetState(STATE_JOINED);
             ledBlinkJoined();  // Triple blink for successful join
@@ -678,11 +962,29 @@ void onEvent(ev_t ev) {
             break;
         case EV_JOIN_FAILED:
             Serial.println("EV_JOIN_FAILED");
+            consecutiveJoinFails++;
+            Serial.printf("[LORA] Consecutive join failures: %u / %u\n",
+                         consecutiveJoinFails, AUTO_WIFI_AFTER_N_FAILURES);
             fieldTestModeSetState(STATE_JOIN_FAILED);
+            
+            // Auto-activate Wi-Fi fallback after N failures
+            if (consecutiveJoinFails >= AUTO_WIFI_AFTER_N_FAILURES && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Too many join failures - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
             break;
         case EV_REJOIN_FAILED:
             Serial.println("EV_REJOIN_FAILED");
+            consecutiveJoinFails++;
+            Serial.printf("[LORA] Consecutive join failures: %u / %u\n",
+                         consecutiveJoinFails, AUTO_WIFI_AFTER_N_FAILURES);
             fieldTestModeSetState(STATE_JOIN_FAILED);
+            
+            // Auto-activate Wi-Fi fallback after N failures
+            if (consecutiveJoinFails >= AUTO_WIFI_AFTER_N_FAILURES && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Too many join failures - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
             break;
         case EV_TXCOMPLETE:
             Serial.println("EV_TXCOMPLETE (TXDONE IRQ received)");
@@ -790,14 +1092,20 @@ void setup() {
     delay(500);
     
     Serial.println("\n\n=== AllSky Sensors - Heltec WiFi LoRa 32 V2 ===");
-    Serial.println("BUILD VERSION: 1.0.2 - FIELD TEST MODE (NO SERIAL)");
+    Serial.println("BUILD VERSION: 1.0.3 - WI-FI FALLBACK MODE");
     Serial.println("Hardware: ESP32-PICO-D4 + SX1276 LoRa + OLED");
+    Serial.println("Features: LoRa OTAA + Wi-Fi Fallback + Button Control");
     Serial.printf("Boot completed at %lu ms\n\n", millis());
     
     // Initialize status LED for field test mode
     pinMode(STATUS_LED, OUTPUT);
     digitalWrite(STATUS_LED, LOW);
     Serial.println("✓ Status LED initialized (GPIO25)");
+    
+    // Initialize button (PRG button on GPIO0)
+    pinMode(BUTTON_PIN, INPUT_PULLUP);  // Internal pull-up, button is active low
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, CHANGE);
+    Serial.println("✓ Button initialized (GPIO0/PRG)");
     
     // Initialize display
     displayInit();
@@ -929,20 +1237,49 @@ void loop() {
         lastLoopLog = millis();
     }
     
-    // Run LMIC scheduler (time-critical, must not be blocked)
-    os_runloop_once();
+    // ============================================================================
+    // STATE MACHINE: Handle mode switching between LoRa and Wi-Fi
+    // ============================================================================
     
-    // Update field test mode display (non-blocking 2Hz refresh)
-    fieldTestModeUpdate();
-    
-    // Check display timeout
-    displayCheck();
-    
-    // Transmission scheduling
-    if (joined && !transmitting && millis() >= nextTransmissionTime) {
-        do_send(&sendjob);
+    // Check if Wi-Fi fallback should be activated
+    if (wifiFallbackEnabled && currentMode == MODE_LORA_ACTIVE) {
+        wifiFallbackStart();
     }
     
-    // No delay - LMIC requires continuous servicing for RX windows
+    // Check button presses
+    buttonCheck();
+    
+    // ============================================================================
+    // MODE-SPECIFIC OPERATIONS
+    // ============================================================================
+    
+    if (currentMode == MODE_LORA_ACTIVE) {
+        // LoRa mode: Run LMIC scheduler (time-critical, must not be blocked)
+        os_runloop_once();
+        
+        // Update field test mode display (non-blocking 2Hz refresh)
+        fieldTestModeUpdate();
+        
+        // Transmission scheduling
+        if (joined && !transmitting && millis() >= nextTransmissionTime) {
+            do_send(&sendjob);
+        }
+        
+    } else if (currentMode == MODE_WIFI_FALLBACK) {
+        // Wi-Fi fallback mode: Handle HTTP server
+        wifiFallbackLoop();
+        
+        // Optionally read sensors and update display periodically in Wi-Fi mode
+        static uint32_t lastWifiSensorRead = 0;
+        if (millis() - lastWifiSensorRead > 60000) {  // Every 60 seconds
+            sensorsRead();
+            lastWifiSensorRead = millis();
+        }
+    }
+    
+    // Check display timeout (common to both modes)
+    displayCheck();
+    
+    // No delay - LMIC requires continuous servicing for RX windows in LoRa mode
     // Watchdog is automatically handled by yield() inside os_runloop_once()
 }
