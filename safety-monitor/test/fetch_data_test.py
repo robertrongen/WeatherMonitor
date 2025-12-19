@@ -23,7 +23,7 @@ def fetch_and_print_first_json(serial_port='/dev/ttyUSB0', baud_rate=115200):
                 try:
                     # Try to parse the line as JSON
                     data = json.loads(line)
-                    print(f"Received JSON data:", json.dumps(data, indent=4))
+                    # print(f"Received JSON data:", json.dumps(data, indent=4))
                     logger.info("Valid JSON data received and printed.")
                     break  # Stop after successfully receiving and printing a JSON object
                 except json.JSONDecodeError:

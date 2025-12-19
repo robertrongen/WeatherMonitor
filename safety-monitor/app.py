@@ -128,7 +128,7 @@ def notify_new_data():
     """Function to emit new data to all connected clients."""
     data = get_latest_data('sky_data', limit=25)
     if data:
-        print("Emitting new data: ", data)  # Debug log
+        # print("Emitting new data: ", data)  # Debug log
         socketio.emit('new_data', {'data': data})
     else:
         print("Error: No data available to send.")

@@ -46,7 +46,7 @@ def setup_database(conn=None):
     conn.close()
 
 def store_sky_data(data, conn=None):
-    print(f"Attempting to store data: {data}")
+    # print(f"Attempting to store data: {data}")
     if conn is None:
         conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
