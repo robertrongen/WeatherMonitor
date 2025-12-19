@@ -194,7 +194,7 @@
     <script>
         var initialData = {
             alertActive: {{ alert_active | tojson }},
-            rows: {{ data | tojson | safe }}
+            rows: []  // Empty array - data loaded via API
         };
 
         var app = new Vue({
