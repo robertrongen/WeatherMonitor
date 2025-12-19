@@ -5,6 +5,7 @@
 import time
 import json
 import logging
+import threading
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from settings import load_settings
@@ -69,8 +70,13 @@ state = {
     "control_start_time": datetime.utcnow(),
     "cycle_count": 0,
     "fan_override": None,  # None = AUTO, True = MANUAL ON, False = MANUAL OFF
-    "heater_override": None  # None = AUTO, True = MANUAL ON, False = MANUAL OFF
+    "heater_override": None,  # None = AUTO, True = MANUAL ON, False = MANUAL OFF
+    "last_override_action": None,  # Last manual command description
+    "last_override_time": None  # UTC ISO timestamp of last manual command
 }
+
+# Thread lock for state modifications
+state_lock = threading.Lock()
 
 def get_cpu_temperature():
     """Fetch CPU temperature from system"""
@@ -134,6 +140,7 @@ def apply_safety_logic(snapshot, settings):
     """
     fan_on = True  # Default: always ON
     heater_on = False  # Default: always OFF
+    rejection_reason = None
     
     # If snapshot is invalid or stale, enforce safe defaults
     if not snapshot or not snapshot.get("valid", False):
@@ -168,10 +175,12 @@ def apply_safety_logic(snapshot, settings):
         # Safety override: force fan ON if critical conditions
         if cpu_temp is not None and cpu_temp > settings["cpu_temp_threshold"] + 10:
             fan_on = True
-            logger.warning(f"Fan manual override rejected: CPU temp critical ({cpu_temp}°C)")
+            rejection_reason = f"Fan manual override rejected: CPU temp critical ({cpu_temp}°C)"
+            logger.warning(rejection_reason)
         if temp is not None and temp > settings["ambient_temp_threshold"] + 10:
             fan_on = True
-            logger.warning(f"Fan manual override rejected: ambient temp critical ({temp}°C)")
+            rejection_reason = f"Fan manual override rejected: ambient temp critical ({temp}°C)"
+            logger.warning(rejection_reason)
     
     # Heater logic: only ON if safe conditions met
     heater_on = False
@@ -195,20 +204,29 @@ def apply_safety_logic(snapshot, settings):
         # Safety override: force heater OFF if unsafe conditions
         if raining is not None and raining > 0:
             heater_on = False
-            logger.warning("Heater manual override rejected: rain detected")
+            rejection_reason = "Heater manual override rejected: rain detected"
+            logger.warning(rejection_reason)
         if temp is not None and temp > 30:
             heater_on = False
-            logger.warning(f"Heater manual override rejected: temp too high ({temp}°C)")
+            rejection_reason = f"Heater manual override rejected: temp too high ({temp}°C)"
+            logger.warning(rejection_reason)
         # Check minimum off time even in manual mode
         if heater_on and state["last_heater_off_time"] is not None:
             elapsed = (datetime.utcnow() - state["last_heater_off_time"]).total_seconds()
             if elapsed < settings["heater_min_off_time_seconds"]:
                 heater_on = False
-                logger.warning(f"Heater manual override rejected: min off time not met ({elapsed}s < {settings['heater_min_off_time_seconds']}s)")
+                rejection_reason = f"Heater manual override rejected: min off time not met ({int(elapsed)}s / {settings['heater_min_off_time_seconds']}s)"
+                logger.warning(rejection_reason)
     
     # Record heater state change
     if not heater_on and state["heater_status"] == "ON":
         state["last_heater_off_time"] = datetime.utcnow()
+    
+    # Record rejection if override was rejected by safety rules
+    if rejection_reason:
+        with state_lock:
+            state["last_override_action"] = rejection_reason
+            state["last_override_time"] = datetime.utcnow().isoformat() + "Z"
     
     state["fan_status"] = "ON" if fan_on else "OFF"
     state["heater_status"] = "ON" if heater_on else "OFF"
@@ -305,7 +323,19 @@ app.logger.setLevel(logging.ERROR)  # Suppress Flask info logs
 @app.route('/status', methods=['GET'])
 def api_status():
     """Return current snapshot and control state"""
-    snapshot = state.get("snapshot") or {}
+    with state_lock:
+        snapshot = state.get("snapshot") or {}
+        mode = state["mode"]
+        fan_status = state["fan_status"]
+        heater_status = state["heater_status"]
+        fan_override = state["fan_override"]
+        heater_override = state["heater_override"]
+        last_error = state["last_error"]
+        cycle_count = state["cycle_count"]
+        control_start_time = state["control_start_time"]
+        last_override_action = state["last_override_action"]
+        last_override_time = state["last_override_time"]
+    
     age = None
     if snapshot.get("received_timestamp"):
         try:
@@ -315,20 +345,22 @@ def api_status():
             pass
     
     # Determine control mode for each actuator
-    fan_mode = "AUTO" if state["fan_override"] is None else "MANUAL"
-    heater_mode = "AUTO" if state["heater_override"] is None else "MANUAL"
+    fan_mode = "AUTO" if fan_override is None else "MANUAL"
+    heater_mode = "AUTO" if heater_override is None else "MANUAL"
     
     return jsonify({
         "snapshot": snapshot,
         "age_seconds": age,
-        "mode": state["mode"],
-        "fan_status": state["fan_status"],
-        "heater_status": state["heater_status"],
+        "mode": mode,
+        "fan_status": fan_status,
+        "heater_status": heater_status,
         "fan_mode": fan_mode,
         "heater_mode": heater_mode,
-        "last_error": state["last_error"],
-        "cycle_count": state["cycle_count"],
-        "uptime_seconds": (datetime.utcnow() - state["control_start_time"]).total_seconds()
+        "last_error": last_error,
+        "cycle_count": cycle_count,
+        "uptime_seconds": (datetime.utcnow() - control_start_time).total_seconds(),
+        "last_override_action": last_override_action,
+        "last_override_time": last_override_time
     })
 
 @app.route('/actuators', methods=['POST'])
@@ -346,21 +378,28 @@ def api_actuators():
         fan_command = data.get("fan")
         heater_command = data.get("heater")
         response = {"fan": None, "heater": None}
+        override_action_parts = []
         
         # Process fan command
         if fan_command is not None:
             fan_command = fan_command.lower()
             if fan_command == "auto":
-                state["fan_override"] = None
+                with state_lock:
+                    state["fan_override"] = None
                 response["fan"] = {"mode": "AUTO", "message": "Fan set to AUTO mode"}
+                override_action_parts.append("Fan AUTO")
                 logger.warning("Fan set to AUTO mode via API")
             elif fan_command == "on":
-                state["fan_override"] = True
+                with state_lock:
+                    state["fan_override"] = True
                 response["fan"] = {"mode": "MANUAL", "state": "ON", "message": "Fan manually set ON"}
+                override_action_parts.append("Fan ON")
                 logger.warning("Fan manually set ON via API")
             elif fan_command == "off":
-                state["fan_override"] = False
+                with state_lock:
+                    state["fan_override"] = False
                 response["fan"] = {"mode": "MANUAL", "state": "OFF", "message": "Fan manually set OFF (will be validated for safety)"}
+                override_action_parts.append("Fan OFF")
                 logger.warning("Fan manually set OFF via API (safety validation applies)")
             else:
                 response["fan"] = {"error": f"Invalid fan command: {fan_command}"}
@@ -369,31 +408,44 @@ def api_actuators():
         if heater_command is not None:
             heater_command = heater_command.lower()
             if heater_command == "auto":
-                state["heater_override"] = None
+                with state_lock:
+                    state["heater_override"] = None
                 response["heater"] = {"mode": "AUTO", "message": "Heater set to AUTO mode"}
+                override_action_parts.append("Heater AUTO")
                 logger.warning("Heater set to AUTO mode via API")
             elif heater_command == "on":
-                state["heater_override"] = True
+                with state_lock:
+                    state["heater_override"] = True
                 response["heater"] = {"mode": "MANUAL", "state": "ON", "message": "Heater manually set ON (safety rules apply)"}
+                override_action_parts.append("Heater ON")
                 logger.warning("Heater manually set ON via API (safety validation applies)")
             elif heater_command == "off":
-                state["heater_override"] = False
+                with state_lock:
+                    state["heater_override"] = False
                 response["heater"] = {"mode": "MANUAL", "state": "OFF", "message": "Heater manually set OFF"}
+                override_action_parts.append("Heater OFF")
                 logger.warning("Heater manually set OFF via API")
             else:
                 response["heater"] = {"error": f"Invalid heater command: {heater_command}"}
+        
+        # Record override action
+        if override_action_parts:
+            with state_lock:
+                state["last_override_action"] = ", ".join(override_action_parts)
+                state["last_override_time"] = datetime.utcnow().isoformat() + "Z"
         
         # Immediately apply safety logic with new overrides
         settings = load_settings()
         fan_on, heater_on = apply_safety_logic(state["snapshot"], settings)
         set_relays(fan_on, heater_on)
         
-        response["applied_state"] = {
-            "fan_status": state["fan_status"],
-            "heater_status": state["heater_status"],
-            "fan_mode": "AUTO" if state["fan_override"] is None else "MANUAL",
-            "heater_mode": "AUTO" if state["heater_override"] is None else "MANUAL"
-        }
+        with state_lock:
+            response["applied_state"] = {
+                "fan_status": state["fan_status"],
+                "heater_status": state["heater_status"],
+                "fan_mode": "AUTO" if state["fan_override"] is None else "MANUAL",
+                "heater_mode": "AUTO" if state["heater_override"] is None else "MANUAL"
+            }
         
         return jsonify(response), 200
         

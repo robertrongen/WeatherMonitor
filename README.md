@@ -15,8 +15,12 @@ skymonitor/
 │  ├─ architecture/
 │  │  ├─ board-esp32-lora-display/  # Board #4 specifications (CANONICAL)
 │  │  ├─ legacy/                     # Superseded designs
-│  │  └─ governance/                 # Project management
+│  │  └─ ARCHITECTURE_PLAN_V2.md    # Current system architecture
+│  ├─ governance/                    # Project management
+│  │  ├─ REPOSITORY_GOVERNANCE.md
+│  │  └─ INTEGRATED_EXECUTION_PLAN.md
 │  └─ reference/
+│     └─ fritzing/                   # Fritzing library files
 ├─ admin/                   # Administrative scripts
 └─ fritzing/                # Legacy circuit diagrams
 ```

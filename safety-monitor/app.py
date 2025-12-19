@@ -104,7 +104,9 @@ def index():
             "day_or_night": snapshot.get("day_or_night"),
             "uptime": health.get("uptime_seconds") if health and not health.get("error") else None,
             "cycle_count": status.get("cycle_count"),
-            "last_error": status.get("last_error") or status.get("error") or health.get("error")
+            "last_error": status.get("last_error") or status.get("error") or health.get("error"),
+            "last_override_action": status.get("last_override_action"),
+            "last_override_time": status.get("last_override_time")
         }
         
         alert_active = get_alert_active()

@@ -63,5 +63,9 @@ python control.py             # Start control loop (separate terminal)
 
 ## References
 
-- Architecture: [`../docs/architecture/ARCHITECTURE_PLAN_V2.md`](../docs/architecture/ARCHITECTURE_PLAN_V2.md)
-- Wiring: [`../docs/architecture/HARDWARE_WIRING_STRATEGY.md`](../docs/architecture/HARDWARE_WIRING_STRATEGY.md)
+- **System Architecture:** [`../docs/architecture/ARCHITECTURE_PLAN_V2.md`](../docs/architecture/ARCHITECTURE_PLAN_V2.md)
+- **Current Hardware (Board #4):**
+  - Architecture: [`../docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md`](../docs/architecture/board-esp32-lora-display/ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md)
+  - Wiring Guide: [`../docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md`](../docs/architecture/board-esp32-lora-display/HARDWARE_WIRING_ESP32_LORA_DISPLAY.md)
+- **Legacy Designs:** [`../docs/architecture/legacy/`](../docs/architecture/legacy/)
+- **Governance:** [`../docs/governance/REPOSITORY_GOVERNANCE.md`](../docs/governance/REPOSITORY_GOVERNANCE.md)

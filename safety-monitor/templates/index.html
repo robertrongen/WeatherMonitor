@@ -57,6 +57,23 @@
         </div>
         <div>
             <h2>Manual Actuator Control</h2>
+            <div style="margin: 10px 0; padding: 10px; background-color: #1a1a1a; border-left: 4px solid {{ '#FFA500' if data.fan_mode == 'MANUAL' or data.heater_mode == 'MANUAL' else '#00FF00' }};">
+                <strong>Control Mode:</strong>
+                {% if data.fan_mode == 'MANUAL' or data.heater_mode == 'MANUAL' %}
+                    <span style="color: #FFA500;">⚠ Manual override active</span>
+                {% else %}
+                    <span style="color: #00FF00;">✓ Automatic control</span>
+                {% endif %}
+                {% if data.last_override_action %}
+                    <br>
+                    <span style="font-size: 0.9em; color: #AAA;">
+                        Last action: {{ data.last_override_action }}
+                        {% if data.last_override_time %}
+                            ({{ data.last_override_time }})
+                        {% endif %}
+                    </span>
+                {% endif %}
+            </div>
             <div style="margin: 10px 0;">
                 <strong>Fan Control:</strong>
                 <span style="color: {{ '#FFA500' if data.fan_mode == 'MANUAL' else '#00FF00' }}">

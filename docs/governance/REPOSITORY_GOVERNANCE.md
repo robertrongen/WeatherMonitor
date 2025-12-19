@@ -1,9 +1,9 @@
 # Repository Reorganization and Implementation Governance
 
-**Status:** Pre-Implementation Governance Phase  
-**Date:** 2025-12-15  
-**Mode:** Architect Mode - No Code Changes Yet  
-**Purpose:** Prepare clean repository structure before firmware implementation begins
+**Status:** Implementation Complete - Governance Updated
+**Date:** 2025-12-19
+**Last Updated:** 2025-12-19
+**Purpose:** Document actual repository structure and governance after implementation
 
 ---
 
@@ -80,18 +80,21 @@ skymonitor/ (workspace root)
 
 ---
 
-#### **Category C: New Firmware (Will Be Created)**
-**Owner:** This project (skymonitor)  
-**Purpose:** ESP32 + RFM95 LoRa sensor node firmware (Option A)  
-**Will Change During Implementation:** YES (new codebase, heavily inspired by stoflamp)
+#### **Category C: Active Firmware (Implemented)**
+**Owner:** This project (skymonitor)
+**Purpose:** Heltec WiFi LoRa 32 V2 sensor node firmware (integrated ESP32 + SX1276)
+**Status:** IMPLEMENTED (using OTAA, WiFi fallback, field-tested)
 
-**Files/Folders (NEW):**
-- `firmware/allsky-sensors/` - ESP32 + RFM95 firmware
+**Files/Folders:**
+- `firmware/allsky-sensors/` - Heltec WiFi LoRa 32 V2 firmware (PlatformIO)
   - `platformio.ini` - PlatformIO project configuration
-  - `src/main.cpp` - Main firmware (sensor acquisition + LoRa transmission)
-  - `lib/` - Custom libraries (if any)
+  - `src/main.cpp` - Main firmware (sensor acquisition + LoRa/WiFi transmission)
+  - `src/lmic_project_config.h` - LMIC configuration
+  - `src/secrets_template.h` - Template for credentials
+  - `lib/` - Custom libraries
   - `include/` - Header files
   - `.gitignore` - Ignore build artifacts
+  - `README.md` - Firmware documentation
 
 ---
 
@@ -197,18 +200,24 @@ skymonitor/ (workspace root)
 │  └─ display-client/              # LILYGO T-Display client (ACTIVE, separate concern)
 │     └─ lilygo.ino                # Display firmware
 │
-├─ docs/                           # Renamed from documentation/ for consistency
+├─ docs/                           # Documentation directory
 │  ├─ architecture/                # Architecture and design docs
-│  │  ├─ ARCHITECTURE_PLAN_V1.md   # Original architecture (historical)
-│  │  ├─ ARCHITECTURE_PLAN_V2.md   # Revised architecture (CURRENT)
-│  │  └─ HARDWARE_WIRING_STRATEGY.md # Wiring plan (CURRENT)
+│  │  ├─ ARCHITECTURE_PLAN_V2.md   # System architecture (CURRENT)
+│  │  ├─ board-esp32-lora-display/ # Board #4 - Heltec WiFi LoRa 32 V2 (CANONICAL)
+│  │  │  ├─ ARCHITECTURE_BOARD_ESP32_LORA_DISPLAY.md
+│  │  │  └─ HARDWARE_WIRING_ESP32_LORA_DISPLAY.md
+│  │  └─ legacy/                   # Superseded designs
+│  │     ├─ ARCHITECTURE_PLAN_V1.md   # Original architecture
+│  │     ├─ HARDWARE_WIRING_STRATEGY.md # Old wiring plan
+│  │     └─ README.md
 │  ├─ governance/                  # Repository and project governance
 │  │  ├─ REPOSITORY_GOVERNANCE.md  # This document
-│  │  └─ IMPLEMENTATION_READINESS.md # Pre-coding checklist (NEW)
+│  │  └─ INTEGRATED_EXECUTION_PLAN.md # Implementation roadmap
 │  ├─ reference/                   # Reference materials
 │  │  ├─ Sky Quality Calculator.xls
-│  │  └─ SkyMonitor 2.png
-│  └─ README.md                    # Documentation index
+│  │  ├─ SkyMonitor 2.png
+│  │  └─ HTIT-WB32LA_V3.2.pdf
+│  └─ fritzing/                    # Fritzing library files
 │
 ├─ fritzing/                       # Circuit diagrams (ARCHIVE, not updated)
 │  └─ (legacy diagrams for USB serial setup)
@@ -231,15 +240,15 @@ skymonitor/ (workspace root)
 
 ### 2.2 Folder Purpose and Ownership
 
-| Folder | Purpose | Ownership | Changes During Implementation? |
-|--------|---------|-----------|-------------------------------|
-| `safety-monitor/` | Raspberry Pi application (Flask, control logic) | This project | **YES** (add LoRa API polling) |
-| `firmware/allsky-sensors/` | ESP32+RFM95 LoRa sensor node firmware | This project | **YES** (new, primary work) |
-| `firmware/legacy/` | Archived Arduino + ESP8266 firmware | This project | **NO** (read-only reference) |
-| `firmware/display-client/` | LILYGO T-Display firmware | This project | **NO** (independent subsystem) |
-| `docs/` | All documentation (architecture, governance, reference) | This project | **YES** (add implementation logs) |
-| `fritzing/` | Legacy circuit diagrams | This project | **NO** (archived reference) |
-| `admin/` | Maintenance scripts | This project | **NO** (utility scripts unchanged) |
+| Folder | Purpose | Ownership | Current Status |
+|--------|---------|-----------|----------------|
+| `safety-monitor/` | Raspberry Pi application (Flask, control logic) | This project | **ACTIVE** (manual control, robustness improvements added) |
+| `firmware/allsky-sensors/` | Heltec WiFi LoRa 32 V2 sensor node firmware | This project | **ACTIVE** (OTAA + WiFi fallback implemented) |
+| `firmware/legacy/` | Archived Arduino + ESP8266 firmware | This project | **ARCHIVED** (read-only reference) |
+| `firmware/display-client/` | LILYGO T-Display firmware | This project | **ACTIVE** (independent subsystem) |
+| `docs/` | All documentation (architecture, governance, reference) | This project | **MAINTAINED** (reflects actual implementation) |
+| `fritzing/` | Legacy circuit diagrams | This project | **ARCHIVED** (legacy reference) |
+| `admin/` | Maintenance scripts | This project | **MAINTAINED** (service management) |
 
 ---
 
@@ -280,25 +289,34 @@ MOVE (create new subfolder):
 MOVE:
   documentation/               → docs/
 WITHIN docs/:
-  ARCHITECTURE_PLAN.md         → docs/architecture/ARCHITECTURE_PLAN_V1.md
-  ARCHITECTURE_PLAN_V2.md      → docs/architecture/ARCHITECTURE_PLAN_V2.md
-  HARDWARE_WIRING_STRATEGY.md  → docs/architecture/HARDWARE_WIRING_STRATEGY.md
+  ARCHITECTURE_PLAN.md         → docs/architecture/legacy/ARCHITECTURE_PLAN_V1.md
+  ARCHITECTURE_PLAN_V2.md      → docs/architecture/ARCHITECTURE_PLAN_V2.md (CURRENT)
+  HARDWARE_WIRING_STRATEGY.md  → docs/architecture/legacy/HARDWARE_WIRING_STRATEGY.md
+  (NEW) Board #4 docs          → docs/architecture/board-esp32-lora-display/ (CANONICAL)
   REPOSITORY_GOVERNANCE.md     → docs/governance/REPOSITORY_GOVERNANCE.md
+  INTEGRATED_EXECUTION_PLAN.md → docs/governance/INTEGRATED_EXECUTION_PLAN.md
   Sky Quality Calculator.xls   → docs/reference/Sky Quality Calculator.xls
   SkyMonitor 2.png             → docs/reference/SkyMonitor 2.png
+  HTIT-WB32LA_V3.2.pdf         → docs/reference/HTIT-WB32LA_V3.2.pdf
 ```
 
-**Operation 4:** Create New Firmware Skeleton
+**Operation 4:** Create New Firmware (COMPLETED)
 ```
-CREATE (new directory structure):
-  firmware/allsky-sensors/
-  firmware/allsky-sensors/platformio.ini
-  firmware/allsky-sensors/src/
+CREATED:
+  firmware/allsky-sensors/                    # Heltec WiFi LoRa 32 V2 firmware
+  firmware/allsky-sensors/platformio.ini      # PlatformIO configuration
+  firmware/allsky-sensors/src/main.cpp        # Main firmware (OTAA + WiFi fallback)
+  firmware/allsky-sensors/src/lmic_project_config.h
+  firmware/allsky-sensors/src/secrets_template.h
   firmware/allsky-sensors/include/
   firmware/allsky-sensors/lib/
-  firmware/allsky-sensors/test/
-  firmware/allsky-sensors/README.md
   firmware/allsky-sensors/.gitignore
+  firmware/allsky-sensors/README.md
+  
+  # Implementation documentation
+  firmware/allsky-sensors/OTAA_JOIN_FIX_SUMMARY.md
+  firmware/allsky-sensors/WIFI_FALLBACK_IMPLEMENTATION.md
+  firmware/allsky-sensors/FIELD_TEST_MODE_DEPLOYMENT.md
 ```
 
 **Operation 5:** Move LILYGO Firmware
@@ -366,110 +384,112 @@ git commit -m "Reorganize repository structure (safety-monitor, firmware, docs)"
 
 ## STEP 4 — IMPLEMENTATION READINESS CHECK
 
-### 4.1 Prerequisites Confirmed
+### 4.1 Implementation Status Confirmed
 
 **Architecture and Design:**
-- [x] System architecture approved (ARCHITECTURE_PLAN_V2.md)
-- [x] Hardware wiring strategy approved (HARDWARE_WIRING_STRATEGY.md)
-- [x] Backend strategy approved (The Things Network v3 with MQTT)
-- [x] Decision matrix evaluated (Option A: ESP32+RFM95 single board selected)
+- [x] System architecture implemented (Board #4: Heltec WiFi LoRa 32 V2)
+- [x] Hardware wiring documented (HARDWARE_WIRING_ESP32_LORA_DISPLAY.md)
+- [x] Backend strategy implemented (The Things Network v3 with OTAA)
+- [x] Hardware selected (Heltec WiFi LoRa 32 V2 - integrated ESP32 + SX1276)
 
-**Hardware Decisions Locked:**
-- [ ] **Wind sensor interface mode chosen** (Pulse + optocoupler OR RS485 + MAX485)
-- [ ] **Power supply strategy confirmed** (USB 5V from Pi OR battery+solar OR mains adapter)
-- [ ] **RFM95 reset pin handling decided** (Shared EN OR dedicated GPIO)
-- [ ] **Component procurement approved** (Voltage divider resistors, optocoupler if pulse mode)
+**Hardware Decisions Made:**
+- [x] **Wind sensor interface mode:** Pulse mode on GPIO34 with optocoupler
+- [x] **Power supply strategy:** USB 5V power from Raspberry Pi
+- [x] **Board selection:** Heltec WiFi LoRa 32 V2 (integrated LoRa + OLED)
+- [x] **I²C bus separation:** Sensors on GPIO21/22, OLED on GPIO4/15
 
 **Backend Configuration:**
-- [ ] **TTN coverage validated** at observatory site (check TTN Mapper or deploy test node)
-- [ ] **TTN application created** (DevEUI, AppEUI, AppKey generated)
-- [ ] **MQTT vs. Webhook chosen** for Raspberry Pi integration (recommendation: MQTT)
+- [x] **TTN coverage validated** (field tested with successful joins)
+- [x] **TTN application created** (OTAA credentials configured)
+- [x] **WiFi fallback implemented** (HTTP POST when LoRa unavailable)
 
 **Repository Governance:**
-- [ ] **Repository reorganization plan approved** (this document)
-- [ ] **File movement operations reviewed** (Step 3.1)
-- [ ] **Git history preservation strategy confirmed** (Step 3.2)
+- [x] **Repository reorganization completed** (safety-monitor/, firmware/ structure)
+- [x] **File movement operations executed** (git mv operations complete)
+- [x] **Git history preserved** (commit history intact)
 
-### 4.2 Open Decisions That MUST Be Resolved Before Coding
+### 4.2 Implementation Achievements
 
-**Critical Hardware Decisions:**
-1. **Wind Sensor Mode (Decision W1 from HARDWARE_WIRING_STRATEGY.md):**
-   - [ ] Confirmed: Pulse mode with optocoupler (GPIO34)
-   - [ ] Confirmed: RS485 mode with MAX485 (GPIO16/17)
-   - **BLOCKER:** Cannot write firmware without this decision
+**Firmware Achievements:**
+1. **OTAA Join Success:**
+   - [x] Robust OTAA join with retry logic implemented
+   - [x] Diagnostic fixes applied (OTAA_JOIN_FIX_SUMMARY.md)
+   - [x] Field tested with successful TTN joins
 
-2. **Component Procurement Status:**
-   - [ ] ESP32 DevKit V1 ordered/available
-   - [ ] RFM95W 868 MHz ordered/available
-   - [ ] Voltage divider resistors (5.1kΩ + 10kΩ, 1%) ordered/available
-   - [ ] Optocoupler 4N35 + resistors (1kΩ + 10kΩ) ordered/available (if pulse mode)
-   - [ ] MAX485 module ordered/available (if RS485 mode)
-   - **BLOCKER:** Cannot test firmware without hardware
+2. **WiFi Fallback Implementation:**
+   - [x] HTTP POST fallback when LoRa unavailable
+   - [x] Documented in WIFI_FALLBACK_IMPLEMENTATION.md
+   - [x] Field tested and verified functional
 
-3. **TTN Coverage Status:**
-   - [ ] TTN gateway within range confirmed (check ttnmapper.org)
-   - [ ] Fallback plan if no coverage (deploy own Chirpstack gateway?)
-   - **BLOCKER:** Cannot deploy firmware without LoRa connectivity
+3. **Sensor Integration:**
+   - [x] I²C bus separation (sensors vs OLED)
+   - [x] MLX90614 IR temperature sensor
+   - [x] TSL2591 sky quality meter
+   - [x] RG-9 rain sensor (analog with voltage divider)
+   - [x] Wind sensor (pulse counting on GPIO34)
 
-### 4.3 Coding Model Governance
+### 4.3 Safety Monitor Application Updates
 
-**Context:** You are currently operating in **Anthropic Claude Sonnet 4.5** (Architect Mode).
+**Application Achievements:**
+1. **Manual Control Feature:**
+   - [x] Manual relay control added (MANUAL_CONTROL_FEATURE.md)
+   - [x] Web UI controls for fan and heater
+   - [x] Override system for testing
 
-**For Implementation Phase:** Firmware and application coding will require a different model to optimize cost and performance.
+2. **Robustness Improvements:**
+   - [x] Enhanced error handling (ROBUSTNESS_IMPROVEMENTS.md)
+   - [x] Improved logging throughout codebase
+   - [x] Better failure recovery mechanisms
 
-**Available Models for Implementation:**
-1. **MiniMax-M2** (RECOMMENDED for coding)
-2. **xAI Grok Code Fast** (ALTERNATIVE for coding)
-
-**Recommendation Will Be Provided in Step 5.**
-
----
-
-## STEP 5 — MODEL CONFIRMATION CHECKPOINT
-
-### 5.1 Coding Model Recommendation
-
-**Recommended Model: MiniMax-M2**
-
-**Rationale:**
-1. **Cost Efficiency:** MiniMax-M2 optimized for coding tasks at lower token cost than Claude Sonnet 4.5.
-2. **Code Quality:** Suitable for embedded C++ (ESP32/PlatformIO) and Python (Safety Monitor enhancements).
-3. **Context Window:** Sufficient for firmware development with stoflamp reference patterns.
-4. **Proven Track Record:** MiniMax-M2 performs well on structured coding tasks with clear specifications.
-
-**Alternative: xAI Grok Code Fast** (Use if MiniMax-M2 unavailable or if real-time debugging with faster iteration needed)
-
-**Why Switch from Claude Sonnet 4.5?**
-Claude Sonnet 4.5 excels at architecture, analysis, and strategic planning (as demonstrated in this governance phase). However, for line-by-line firmware coding, schema definitions, and repetitive implementation patterns, a model optimized for coding workload provides better cost-performance balance without sacrificing quality when requirements are this clearly specified.
-
-### 5.2 Final Pre-Implementation Checklist
-
-**Before Switching to Implementation Mode, Confirm:**
-- [ ] Repository reorganization plan approved (Step 3)
-- [ ] File movement strategy clear (git mv operations documented)
-- [ ] Hardware decisions locked (wind sensor mode, power supply, components ordered)
-- [ ] Backend configuration ready (TTN app created, MQTT credentials available)
-- [ ] Coding model selected (MiniMax-M2 or Grok Code Fast)
-- [ ] Implementation sequence understood:
-  1. Execute repository reorganization (git mv operations)
-  2. Create firmware skeleton (platformio.ini, src/, include/)
-  3. Port stoflamp LMIC initialization patterns
-  4. Implement sensor acquisition logic
-  5. Integrate TTN payload encoder
-  6. Add Safety Monitor LoRa API polling
+3. **Serial Removal:**
+   - [x] USB serial dependencies removed (SERIAL_REMOVAL_SUMMARY.md)
+   - [x] Legacy Arduino/ESP8266 code archived
+   - [x] Clean transition to WiFi/LoRa data sources
 
 ---
 
-## FINAL QUESTION
+## STEP 5 — CURRENT IMPLEMENTATION STATUS
 
-**Do you approve this repository reorganization plan and confirm the coding model (MiniMax-M2 recommended), so I may switch to implementation mode?**
+### 5.1 What Has Been Completed
 
-**If Approved:**
-- Execute `git mv` operations to reorganize repository
-- Switch to **MiniMax-M2** for firmware and application implementation
-- Begin Phase 0 (stoflamp firmware baseline port to PlatformIO)
+**Repository Structure:** ✅ COMPLETE
+- Safety Monitor code moved to `safety-monitor/` subdirectory
+- Legacy firmware archived in `firmware/legacy/`
+- Active firmware in `firmware/allsky-sensors/`
+- Documentation organized in `docs/` with proper hierarchy
 
-**If Modifications Needed:**
-- Specify which folder structure or file movements require changes
-- Clarify any remaining hardware decisions (wind sensor mode, power supply)
-- Confirm alternative coding model if not MiniMax-M2
+**Firmware Implementation:** ✅ SUBSTANTIALLY COMPLETE
+- Heltec WiFi LoRa 32 V2 firmware operational
+- OTAA join with TTN working
+- WiFi fallback for HTTP POST working
+- All sensors integrated and transmitting
+- Field tested and deployed
+
+**Application Updates:** ✅ COMPLETE
+- Manual control feature added
+- Robustness improvements applied
+- USB serial removed
+- Service files updated
+
+### 5.2 Documentation Alignment Status
+
+**What Needs Updating:**
+- [x] This governance document (being updated now)
+- [ ] Cross-references in README files to point to correct docs
+- [ ] Ensure all links point to current canonical documentation
+
+**Current Canonical Documentation:**
+- **System Architecture:** [`docs/architecture/ARCHITECTURE_PLAN_V2.md`](../architecture/ARCHITECTURE_PLAN_V2.md)
+- **Board Configuration:** [`docs/architecture/board-esp32-lora-display/`](../architecture/board-esp32-lora-display/)
+- **Implementation Plan:** [`docs/governance/INTEGRATED_EXECUTION_PLAN.md`](INTEGRATED_EXECUTION_PLAN.md)
+- **Legacy Designs:** [`docs/architecture/legacy/`](../architecture/legacy/)
+
+---
+
+## GOVERNANCE STATUS SUMMARY
+
+**Repository Status:** IMPLEMENTED AND OPERATIONAL
+**Governance Document Status:** UPDATED TO REFLECT ACTUAL STATE
+**Last Verified:** 2025-12-19
+
+The repository structure documented in Section 2.1 reflects the actual current state. All planned reorganization has been completed. Documentation should reference the current canonical sources listed in Section 5.2.
