@@ -2,7 +2,6 @@
 # Reads live state from control service API, writes settings only
 
 from flask import Flask, jsonify, request, render_template, redirect, url_for, flash, abort
-from flask_session import Session
 import json
 import os
 import requests
@@ -14,8 +13,6 @@ from settings import load_settings
 app = Flask(__name__)
 load_dotenv()
 app.secret_key = os.getenv('SESSION_KEY', 'default-dev-key')
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
 # Minimal logging
 logging.basicConfig(level=logging.WARNING)
