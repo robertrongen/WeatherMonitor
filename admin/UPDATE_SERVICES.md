@@ -1,100 +1,311 @@
-# Systemd Service Path Updates (Post-Reorganization)
+# Systemd Service Configuration (HTTP-only Architecture)
 
-**Required Action:** Update systemd service files to reflect new `safety-monitor/` path.
+**Last Updated:** 2025-12-19  
+**Architecture:** HTTP polling, no database, minimal disk I/O
 
-## Updated Service Files
+---
+
+## Architecture Overview
+
+The refactored Skymonitor system uses only TWO services:
+
+1. **control.service** - Primary runtime service (CRITICAL)
+   - HTTP polling with primary/fallback endpoints
+   - Data validation and freshness checks
+   - Safety logic and relay control
+   - Exposes local API on localhost:5001
+
+2. **app.service** - Optional Flask UI (NON-CRITICAL)
+   - Reads state from control.service API
+   - Writes settings.json only
+   - Can be stopped without affecting safety
+
+### Services REMOVED
+
+The following services are **deprecated and must be disabled**:
+
+- ~~store_data.service~~ - Historical storage removed
+- ~~system_monitor.service~~ - Background monitoring removed
+
+---
+
+## Installation Steps
+
+### 1. Remove Old Services
+
+```bash
+# Stop and disable deprecated services
+sudo systemctl stop store_data.service system_monitor.service
+sudo systemctl disable store_data.service system_monitor.service
+
+# Optional: Remove old service files
+sudo rm -f /etc/systemd/system/store_data.service
+sudo rm -f /etc/systemd/system/system_monitor.service
+```
+
+### 2. Install New Service Files
+
+```bash
+# Copy new service files
+sudo cp /home/robert/github/skymonitor/admin/control.service /etc/systemd/system/
+sudo cp /home/robert/github/skymonitor/admin/app.service /etc/systemd/system/
+
+# Set correct permissions
+sudo chmod 644 /etc/systemd/system/control.service
+sudo chmod 644 /etc/systemd/system/app.service
+
+# Reload systemd
+sudo systemctl daemon-reload
+```
+
+### 3. Enable and Start Services
+
+```bash
+# Enable services to start on boot
+sudo systemctl enable control.service
+sudo systemctl enable app.service
+
+# Start services
+sudo systemctl start control.service
+sudo systemctl start app.service
+
+# Check status
+sudo systemctl status control.service
+sudo systemctl status app.service
+```
+
+---
+
+## Service Details
+
+### control.service
+
+**Purpose:** Core safety monitor - handles HTTP polling, validation, control logic, and relay control.
+
+**Key Features:**
+- Runs continuously with 10-second loop
+- HTTP polling with 2-second timeout
+- Primary/fallback endpoint switching
+- Fail-safe defaults: Fan ON, Heater OFF
+- Exposes local API on http://127.0.0.1:5001
+
+**Endpoints:**
+- `GET /status` - Current snapshot, age, mode, relay states
+- `GET /health` - Service health and uptime
+
+**Must Run:** YES - Safety-critical service
+
+**Dependencies:** network-online.target
+
+**Service File Location:** `/etc/systemd/system/control.service`
+
+---
 
 ### app.service
+
+**Purpose:** Flask UI for viewing status and editing settings.
+
+**Key Features:**
+- Reads data from control.service API (no direct sensor access)
+- Updates settings.json only
+- Serves UI on http://0.0.0.0:5000
+
+**Must Run:** NO - Optional UI, does not affect safety
+
+**Dependencies:** control.service (soft dependency)
+
+**Service File Location:** `/etc/systemd/system/app.service`
+
+---
+
+## Verification
+
+### Check Service Status
+
 ```bash
-sudo nano /etc/systemd/system/app.service
+# View running services
+sudo systemctl status control.service
+sudo systemctl status app.service
+
+# Check logs (last 50 lines)
+sudo journalctl -u control.service -n 50 -f
+sudo journalctl -u app.service -n 50 -f
 ```
 
-Content (updated paths in **bold**):
-```ini
-[Unit]
-Description=Skymonitor App Service
-After=network.target
+### Test Control API
 
-[Service]
-Type=simple
-User=robert
-WorkingDirectory=/home/user/skymonitor/safety-monitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/app.py
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=inherit
-
-[Install]
-WantedBy=multi-user.target
-```
-
-###control.service
 ```bash
-sudo nano /etc/systemd/system/control.service
+# Check control service health
+curl http://127.0.0.1:5001/health
+
+# Get current status
+curl http://127.0.0.1:5001/status | jq
 ```
 
-Content (updated paths in **bold**):
-```ini
-[Unit]
-Description=Skymonitor Control Service
-After=network.target
+### Test Flask UI
 
-[Service]
-Type=simple
-User=robert
-WorkingDirectory=/home/user/skymonitor/safety-monitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/control.py
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=inherit
+Open browser to: `http://allsky.local:5000`
 
-[Install]
-WantedBy=multi-user.target
-```
+---
 
-### system_monitor.service
+## Troubleshooting
+
+### Control Service Won't Start
+
+1. Check Python path and venv:
+   ```bash
+   /home/robert/github/skymonitor/venv/bin/python3 --version
+   ```
+
+2. Check working directory:
+   ```bash
+   ls -la /home/robert/github/skymonitor/safety-monitor/
+   ```
+
+3. Check settings.json exists:
+   ```bash
+   cat /home/robert/github/skymonitor/safety-monitor/settings.json
+   ```
+
+4. Check GPIO permissions (if on Raspberry Pi):
+   ```bash
+   groups robert
+   # Ensure 'gpio' group membership
+   ```
+
+### Dependency Issues
+
+If missing modules:
 ```bash
-sudo nano /etc/systemd/system/system_monitor.service
+cd /home/robert/github/skymonitor
+source venv/bin/activate
+pip install -r safety-monitor/requirements.txt
 ```
 
-Content (updated paths in **bold**):
-```ini
-[Unit]
-Description=System Monitor Service
-After=network.target
+### Network Polling Issues
 
-[Service]
-Type=simple
-User=robert
-WorkingDirectory=/home/user/skymonitor/safety-monitor
-ExecStart=/home/user/skymonitor/venv/bin/python /home/user/skymonitor/safety-monitor/system_monitor.py
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=inherit
+1. Test primary endpoint manually:
+   ```bash
+   curl -s "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
+   ```
 
-[Install]
-WantedBy=multi-user.target
-```
+2. Check settings.json endpoints:
+   ```bash
+   cat safety-monitor/settings.json | grep endpoint
+   ```
 
-## Apply Changes
+---
 
-After editing service files:
+## Emergency Recovery
+
+If control service fails and relays are in unsafe state:
+
+1. **Stop service immediately:**
+   ```bash
+   sudo systemctl stop control.service
+   ```
+
+2. **Manually set safe relay states** (fans ON, heater OFF):
+   ```bash
+   # Run emergency script (if available)
+   python3 safety-monitor/emergency_safe_mode.py
+   
+   # OR manually via GPIO (on Raspberry Pi):
+   # GPIO 26, 21 = LOW (fans ON)
+   # GPIO 20 = HIGH (heater OFF)
+   ```
+
+3. **Check logs for errors:**
+   ```bash
+   sudo journalctl -u control.service -n 200 | grep ERROR
+   ```
+
+4. **Restart after fixing issues:**
+   ```bash
+   sudo systemctl start control.service
+   ```
+
+---
+
+## Performance Monitoring
+
+### CPU Usage
+
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart app control system_monitor
-sudo systemctl status app control system_monitor
+# Check control service CPU usage
+top -p $(pgrep -f "control.py") -n 1
 ```
 
-## Validation
+### Disk I/O
 
-Check that services start without errors:
 ```bash
-sudo journalctl -u app.service -n 50
-sudo journalctl -u control.service -n 50
-sudo journalctl -u system_monitor.service -n 50
+# Monitor disk writes (should be minimal)
+iotop -p $(pgrep -f "control.py")
 ```
 
-Verify web UI accessible: `http://allsky.local:5000`
+### Memory Usage
+
+```bash
+# Check memory footprint
+ps aux | grep control.py
+```
+
+---
+
+## Configuration
+
+Settings are stored in: `/home/robert/github/skymonitor/safety-monitor/settings.json`
+
+**To modify settings:**
+1. Stop control service: `sudo systemctl stop control.service`
+2. Edit settings.json
+3. Restart control service: `sudo systemctl start control.service`
+
+**OR** use the Flask UI at `/settings` (changes applied on next control loop iteration).
+
+---
+
+## Key Differences from Old Architecture
+
+| Aspect | Old (v1) | New (v2) |
+|--------|----------|----------|
+| **Services** | 3 services | 2 services |
+| **Data Source** | Serial port | HTTP polling |
+| **Storage** | SQLite historical data | In-memory + state.json |
+| **Disk Writes** | Continuous | Minimal (10-minute interval) |
+| **Control Loop** | 60-300 seconds | 10 seconds |
+| **Logging** | DEBUG level | WARN/ERROR only |
+| **Flask Dependency** | Direct DB access | API calls to control service |
+| **Fail-safe** | GPIO defaults | Explicit enforcement in code |
+
+---
+
+## Validation Checklist
+
+After installation, verify:
+
+- [ ] control.service is running
+- [ ] app.service is running (optional)
+- [ ] Control API responds on port 5001
+- [ ] Flask UI accessible on port 5000
+- [ ] Deprecated services are stopped and disabled
+- [ ] Logs show HTTP polling activity
+- [ ] No frequent disk writes (check iotop)
+- [ ] CPU usage < 5% on Raspberry Pi
+- [ ] Relays respond to temperature changes
+- [ ] Heater enforces dew point threshold
+- [ ] Fan defaults to ON during data loss
+
+---
+
+## Support
+
+For issues, check:
+1. Service logs: `journalctl -u control.service`
+2. Control API: `curl http://127.0.0.1:5001/status`
+3. Settings validity: `cat safety-monitor/settings.json | jq`
+4. Python environment: `which python3` (should be in venv)
+
+---
+
+**Note:** This architecture is designed for low-power, sealed-enclosure deployment on Raspberry Pi. All changes prioritize safety, reliability, and minimal resource usage.

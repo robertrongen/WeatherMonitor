@@ -1,0 +1,21 @@
+[Unit]
+Description=Skymonitor Flask UI Service (reads from control API)
+After=network.target control.service
+Wants=control.service
+
+[Service]
+Type=simple
+User=robert
+Group=robert
+WorkingDirectory=/home/robert/github/skymonitor/safety-monitor
+ExecStart=/home/robert/github/skymonitor/venv/bin/python3 /home/robert/github/skymonitor/safety-monitor/app.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# UI service can be stopped without affecting safety
+# Control service remains independent
+
+[Install]
+WantedBy=multi-user.target

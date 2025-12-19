@@ -1,227 +1,382 @@
-# control.py
-#!/usr/bin/python
-# -*- coding:utf-8 -*-
+#!/usr/bin/env python3
+# control.py - Standalone Safety Monitor Control Service
+# Handles HTTP polling, validation, safety logic, relay control, and local API
+
 import time
+import json
+import logging
+from datetime import datetime, timedelta
+from flask import Flask, jsonify
 from settings import load_settings
-from system_monitor import get_cpu_temperature
-from fetch_data import get_temperature_humidity, get_sky_data, get_rain_wind_data, get_allsky_data
+from fetch_data import fetch_sensor_data_http, validate_snapshot
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
-from store_data import store_sky_data, setup_database
-from app_logging import setup_logger, should_log
-import logging
-from rain_alarm import check_rain_alert
-from app import notify_new_data, get_db_connection
 
-logger = setup_logger('control', 'control.log', level=logging.DEBUG)
-settings = load_settings()  # Initial load of settings
+# Minimal logging - WARN and ERROR only
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger('control')
 
+# GPIO setup
 try:
     import RPi.GPIO as GPIO
     GPIO_AVAILABLE = True
 except (ImportError, RuntimeError):
-    print("GPIO library can only be run on a Raspberry Pi, importing mock GPIO")
+    logger.warning("GPIO library not available, running in mock mode")
     GPIO_AVAILABLE = False
 
+# Relay GPIO pins (Waveshare RPi Relay Board)
+RELAY_FAN_IN = 26
+RELAY_HEATER = 20
+RELAY_FAN_OUT = 21
 
 def setup_gpio():
+    """Initialize GPIO pins for relay control"""
     if GPIO_AVAILABLE:
-        # Relay GPIO pins on the Raspberry Pi as per Waveshare documentation https://www.waveshare.com/wiki/RPi_Relay_Board
-        Relay_Ch1 = 26  # Fan In
-        Relay_Ch2 = 20  # Dew Heater
-        Relay_Ch3 = 21  # Fan Out
-        GPIO.setwarnings(False)  # Set GPIO warnings to false (optional, to avoid nuisance warnings)
+        GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup([Relay_Ch1, Relay_Ch2, Relay_Ch3], GPIO.OUT, initial=GPIO.HIGH)
-        # logger.info("GPIO setup completed")
+        # Initialize all relays to safe defaults: fans ON (LOW), heater OFF (HIGH)
+        GPIO.setup([RELAY_FAN_IN, RELAY_HEATER, RELAY_FAN_OUT], GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.output(RELAY_FAN_IN, GPIO.LOW)   # Fan ON
+        GPIO.output(RELAY_FAN_OUT, GPIO.LOW)  # Fan ON
+        GPIO.output(RELAY_HEATER, GPIO.HIGH)  # Heater OFF
+        logger.warning("GPIO initialized - safe defaults applied (fans ON, heater OFF)")
 
-if GPIO_AVAILABLE:
-    setup_gpio()
-
-def compute_dew_point_and_heat_index(data):
-    if 0 <= data["humidity"] <= 100:
+def set_relays(fan_on, heater_on):
+    """Set relay states - fail-safe defaults if GPIO unavailable"""
+    if GPIO_AVAILABLE:
         try:
-            data["dew_point"] = round(calculate_dewPoint(data["temperature"], data["humidity"]), 2)
-            temp = Temp(data["temperature"], 'c')
-            data["heat_index"] = round(heat_index(temp, data["humidity"]).c, 1)
+            # Relays are active LOW
+            GPIO.output(RELAY_FAN_IN, GPIO.LOW if fan_on else GPIO.HIGH)
+            GPIO.output(RELAY_FAN_OUT, GPIO.LOW if fan_on else GPIO.HIGH)
+            GPIO.output(RELAY_HEATER, GPIO.LOW if heater_on else GPIO.HIGH)
         except Exception as e:
-            error_msg = f"Failed to compute dew point or heat index for temperature {data['temperature']} and humidity {data['humidity']}: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-    else:
-        error_msg = f"Invalid humidity value: {data['humidity']}"
-        if should_log(error_msg):
-            logger.warning(error_msg)
+            logger.error(f"GPIO operation failed: {e}")
 
-def control_fan_heater():
+# Global state for control service
+state = {
+    "snapshot": None,
+    "mode": "INITIALIZING",  # NORMAL | FALLBACK | STALE | ERROR
+    "last_heater_off_time": None,
+    "fan_status": "ON",
+    "heater_status": "OFF",
+    "primary_failure_count": 0,
+    "last_primary_attempt": None,
+    "last_error": None,
+    "control_start_time": datetime.utcnow(),
+    "cycle_count": 0
+}
+
+def get_cpu_temperature():
+    """Fetch CPU temperature from system"""
     try:
-        global settings
-        temp_hum_url = settings["temp_hum_url"]
-        settings = load_settings()  # Refresh settings on each call
-        data = {
-            "temperature": None,
-            "humidity": None,
-            "dew_point": None,
-            "heat_index": None,
-            "fan_status": "OFF",
-            "heater_status": "OFF",
-            "cpu_temperature": None,
-            "raining": None,
-            "light": None,
-            "sky_temperature": None,
-            "ambient_temperature": None,
-            "sqm_ir": None,
-            "sqm_full": None,
-            "sqm_visible": None,
-            "sqm_lux": None,
-            "cloud_coverage": None,
-            "cloud_coverage_indicator": None,
-            "brightness": None,
-            "bortle": None,
-            "wind": None,
-            "camera_temp": None,
-            "star_count": None,
-            "day_or_night": None
-        }
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            temp = f.read()
+        return round(float(temp) / 1000, 2)
+    except Exception as e:
+        logger.warning(f"Failed to fetch CPU temperature: {e}")
+        return None
 
-        if not isinstance(temp_hum_url, str) or 'http' not in temp_hum_url:
-            logger.warning(f"Invalid URL passed: {temp_hum_url}, using default URL instead")
-            temp_hum_url = "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1"
-        else:
+def compute_derived_values(snapshot, settings):
+    """Compute dew point, heat index, and weather indicators"""
+    try:
+        temp = snapshot.get("temperature")
+        humidity = snapshot.get("humidity")
+        
+        # Dew point and heat index
+        if temp is not None and humidity is not None and 0 <= humidity <= 100:
             try:
-                temperature, humidity = get_temperature_humidity(temp_hum_url)
-                if temperature is not None:
-                    data["temperature"] = round(temperature, 1)
-                if humidity is not None and 0 <= humidity <= 100:
-                    data["humidity"] = round(humidity, 1)
+                snapshot["dew_point"] = round(calculate_dewPoint(temp, humidity), 2)
+                temp_obj = Temp(temp, 'c')
+                snapshot["heat_index"] = round(heat_index(temp_obj, humidity).c, 1)
             except Exception as e:
-                error_msg = f"Failed to fetch temperature and humidity: {e}"
-                if should_log(error_msg):
-                    logger.warning(error_msg)
-
-        try:
-            # Fetch rain and wind sensor data from the Nano
-            rain_wind_data = get_rain_wind_data(settings["serial_port_rain"], settings["baud_rate"])
-            if rain_wind_data:
-                rain_intensity, wind_speed = rain_wind_data
-                if rain_intensity is not None:
-                    check_rain_alert(rain_intensity)
-                    data["raining"] = rain_intensity
-                if wind_speed is not None:
-                    data["wind"] = wind_speed
-        except Exception as e:
-            error_msg = f"Failed to fetch rain and wind sensor data: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-
-        try:
-            cpu_temperature = get_cpu_temperature()
-            if cpu_temperature is not None:
-                data["cpu_temperature"] = round(cpu_temperature, 0)
-        except Exception as e:
-            error_msg = f"Failed to fetch CPU temperature: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-
-        try:
-            camera_temp, star_count, day_or_night = get_allsky_data()
-            if camera_temp is not None:
-                data["camera_temp"] = camera_temp
-            if star_count is not None:
-                data["star_count"] = star_count
-            if day_or_night is not None:
-                data["day_or_night"] = day_or_night
-        except Exception as e:
-            error_msg = f"Failed to fetch allsky data: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-
-        if data["temperature"] is not None and data["humidity"] is not None:
-            compute_dew_point_and_heat_index(data)
-
-        if data["temperature"] is not None:
-            data["fan_status"] = "ON" if (
-                data["camera_temp"] is not None and data["camera_temp"] > 25
-                or data["temperature"] > settings["ambient_temp_threshold"]
-                or data["temperature"] < (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"])
-                or data["cpu_temperature"] is not None and data["cpu_temperature"] > settings["cpu_temp_threshold"]
-            ) else "OFF"
-
-            data["heater_status"] = "OFF" if data["temperature"] > (data.get("dew_point", float('inf')) + settings["dewpoint_threshold"]) else "ON"
-
-        if GPIO_AVAILABLE:
+                logger.warning(f"Failed to compute dew point or heat index: {e}")
+        
+        # Weather indicators (cloud coverage, brightness, bortle)
+        ambient_temp = snapshot.get("ambient_temperature")
+        sky_temp = snapshot.get("sky_temperature")
+        sqm_lux = snapshot.get("sqm_lux")
+        
+        if ambient_temp is not None and sky_temp is not None and sqm_lux is not None:
             try:
-                GPIO.output(26, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-                GPIO.output(21, GPIO.LOW if data["fan_status"] == "ON" else GPIO.HIGH)
-                GPIO.output(20, GPIO.LOW if data["heater_status"] == "ON" else GPIO.HIGH)
-            except Exception as e:
-                error_msg = f"GPIO operation failed: {e}"
-                if should_log(error_msg):
-                    logger.warning(error_msg)
-
-        try:
-            serial_data = get_sky_data(settings["serial_port_json"], settings["baud_rate"])
-            if serial_data:
-                data.update(serial_data)
-        except Exception as e:
-            error_msg = f"Failed to fetch sky sensor data: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-
-        try:
-            if data["ambient_temperature"] is not None and data["sky_temperature"] is not None and data["sqm_lux"] is not None:
-                cloud_coverage, cloud_coverage_indicator, brightness, bortle = calculate_indicators(
-                    data["ambient_temperature"], data["sky_temperature"], data["sqm_lux"]
+                cloud_coverage, cloud_indicator, brightness, bortle = calculate_indicators(
+                    ambient_temp, sky_temp, sqm_lux
                 )
                 if cloud_coverage is not None:
-                    data["cloud_coverage"] = round(cloud_coverage, 2)
-                if cloud_coverage_indicator is not None:
-                    data["cloud_coverage_indicator"] = round(cloud_coverage_indicator, 2)
+                    snapshot["cloud_coverage"] = round(cloud_coverage, 2)
+                if cloud_indicator is not None:
+                    snapshot["cloud_coverage_indicator"] = round(cloud_indicator, 2)
                 if brightness is not None:
-                    data["brightness"] = round(brightness, 2)
+                    snapshot["brightness"] = round(brightness, 2)
                 if bortle is not None:
-                    data["bortle"] = round(bortle, 2)
-            else:
-                missing = [key for key in ["ambient_temperature", "sky_temperature", "sqm_lux"] if data[key] is None]
-                logger.warning(f"Skipping weather indicators calculation due to missing values: {missing}")
-        except Exception as e:
-            error_msg = f"Failed to compute weather indicators: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-
-        # store data
-        conn = get_db_connection()
-        try:
-            store_sky_data(data, conn)
-            notify_new_data()
-        except Exception as e:
-            error_msg = f"Failed to store data: {e}"
-            if should_log(error_msg):
-                logger.warning(error_msg)
-        finally:
-            conn.close()
-
+                    snapshot["bortle"] = round(bortle, 2)
+            except Exception as e:
+                logger.warning(f"Failed to compute weather indicators: {e}")
+        
+        # CPU temperature
+        cpu_temp = get_cpu_temperature()
+        if cpu_temp is not None:
+            snapshot["cpu_temperature"] = cpu_temp
+            
     except Exception as e:
-        error_msg = f"Unexpected error in control_fan_heater function: {e}"
-        if should_log(error_msg):
-            logger.warning(error_msg)
-        raise
+        logger.error(f"Error in compute_derived_values: {e}")
 
-if __name__ == '__main__':
-    setup_database()
+def apply_safety_logic(snapshot, settings):
+    """
+    Apply safety control logic to determine fan and heater states.
+    CRITICAL: Fail-safe defaults are Fan ON, Heater OFF
+    """
+    fan_on = True  # Default: always ON
+    heater_on = False  # Default: always OFF
+    
+    # If snapshot is invalid or stale, enforce safe defaults
+    if not snapshot or not snapshot.get("valid", False):
+        logger.warning("Invalid or stale snapshot - enforcing safe defaults (fan ON, heater OFF)")
+        state["mode"] = "STALE"
+        state["fan_status"] = "ON"
+        state["heater_status"] = "OFF"
+        return fan_on, heater_on
+    
+    # Extract values
+    temp = snapshot.get("temperature")
+    dew_point = snapshot.get("dew_point")
+    cpu_temp = snapshot.get("cpu_temperature")
+    camera_temp = snapshot.get("camera_temp")
+    raining = snapshot.get("raining")
+    
+    # Fan logic: ON if any threshold exceeded
+    if cpu_temp is not None and cpu_temp > settings["cpu_temp_threshold"]:
+        fan_on = True
+    if camera_temp is not None and camera_temp > 25:
+        fan_on = True
+    if temp is not None and temp > settings["ambient_temp_threshold"]:
+        fan_on = True
+    if temp is not None and dew_point is not None:
+        if temp < (dew_point + settings["dewpoint_threshold"]):
+            fan_on = True
+    
+    # Heater logic: only ON if safe conditions met
+    heater_on = False
+    if temp is not None and dew_point is not None:
+        dew_risk = temp < (dew_point + settings["dewpoint_threshold"])
+        no_rain = (raining is None or raining == 0)
+        min_off_time_passed = True
+        
+        # Check minimum off time
+        if state["last_heater_off_time"] is not None:
+            elapsed = (datetime.utcnow() - state["last_heater_off_time"]).total_seconds()
+            min_off_time_passed = elapsed >= settings["heater_min_off_time_seconds"]
+        
+        if dew_risk and no_rain and min_off_time_passed:
+            heater_on = True
+    
+    # Record heater state change
+    if not heater_on and state["heater_status"] == "ON":
+        state["last_heater_off_time"] = datetime.utcnow()
+    
+    state["fan_status"] = "ON" if fan_on else "OFF"
+    state["heater_status"] = "ON" if heater_on else "OFF"
+    
+    return fan_on, heater_on
+
+def fetch_and_update_snapshot(settings):
+    """
+    Fetch sensor data via HTTP with primary/fallback logic.
+    Returns True if successful, False otherwise.
+    """
+    use_primary = True
+    now = datetime.utcnow()
+    
+    # Check if we should retry primary after fallback period
+    if state["mode"] == "FALLBACK":
+        if state["last_primary_attempt"]:
+            elapsed = (now - state["last_primary_attempt"]).total_seconds()
+            if elapsed >= settings["fallback_retry_interval_seconds"]:
+                use_primary = True
+                logger.warning("Retrying primary endpoint after fallback interval")
+            else:
+                use_primary = False
+    
+    endpoint = settings["primary_endpoint"] if use_primary else settings["fallback_endpoint"]
+    
     try:
-        # logger.info("Starting control loop")
-        control_fan_heater()
-        while True:
-            start_time = time.time()  # Capture start time
-            control_fan_heater()
-            elapsed_time = time.time() - start_time
-            sleep_time = max(settings["sleep_time"] - elapsed_time, 0)
-            logger.info(f"Slept for {sleep_time} seconds")
-            time.sleep(sleep_time)
+        # Fetch sensor data via HTTP
+        snapshot = fetch_sensor_data_http(endpoint, settings)
+        
+        if snapshot and snapshot.get("valid"):
+            # Success - update state
+            compute_derived_values(snapshot, settings)
+            state["snapshot"] = snapshot
+            
+            if use_primary:
+                state["mode"] = "NORMAL"
+                state["primary_failure_count"] = 0
+                logger.warning(f"Primary endpoint successful - mode: NORMAL")
+            else:
+                state["mode"] = "FALLBACK"
+                logger.warning(f"Fallback endpoint successful - mode: FALLBACK")
+            
+            state["last_error"] = None
+            return True
+        else:
+            # Fetch failed or invalid
+            if use_primary:
+                state["primary_failure_count"] += 1
+                state["last_primary_attempt"] = now
+                logger.warning(f"Primary endpoint failed (count: {state['primary_failure_count']})")
+                
+                if state["primary_failure_count"] >= settings["primary_failure_threshold"]:
+                    logger.error("Primary failure threshold exceeded - switching to fallback")
+                    state["mode"] = "FALLBACK"
+            else:
+                logger.error("Fallback endpoint also failed")
+            
+            state["last_error"] = "Sensor data fetch failed or invalid"
+            return False
+            
+    except Exception as e:
+        logger.error(f"Exception fetching sensor data from {endpoint}: {e}")
+        state["last_error"] = str(e)
+        
+        if use_primary:
+            state["primary_failure_count"] += 1
+            state["last_primary_attempt"] = now
+        
+        return False
 
+def control_loop_iteration(settings):
+    """Single iteration of the control loop"""
+    state["cycle_count"] += 1
+    
+    # Fetch and update snapshot
+    fetch_success = fetch_and_update_snapshot(settings)
+    
+    # Apply safety logic (will enforce fail-safe defaults if needed)
+    fan_on, heater_on = apply_safety_logic(state["snapshot"], settings)
+    
+    # Set physical relays
+    set_relays(fan_on, heater_on)
+    
+    # Log status periodically
+    if state["cycle_count"] % 10 == 0:
+        logger.warning(f"Control loop #{state['cycle_count']}: mode={state['mode']}, "
+                      f"fan={state['fan_status']}, heater={state['heater_status']}")
+
+# Flask API for local status
+app = Flask(__name__)
+app.logger.setLevel(logging.ERROR)  # Suppress Flask info logs
+
+@app.route('/status', methods=['GET'])
+def api_status():
+    """Return current snapshot and control state"""
+    snapshot = state.get("snapshot") or {}
+    age = None
+    if snapshot.get("received_timestamp"):
+        try:
+            received_dt = datetime.fromisoformat(snapshot["received_timestamp"])
+            age = (datetime.utcnow() - received_dt).total_seconds()
+        except:
+            pass
+    
+    return jsonify({
+        "snapshot": snapshot,
+        "age_seconds": age,
+        "mode": state["mode"],
+        "fan_status": state["fan_status"],
+        "heater_status": state["heater_status"],
+        "last_error": state["last_error"],
+        "cycle_count": state["cycle_count"],
+        "uptime_seconds": (datetime.utcnow() - state["control_start_time"]).total_seconds()
+    })
+
+@app.route('/health', methods=['GET'])
+def api_health():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "running",
+        "mode": state["mode"],
+        "active_endpoint": "primary" if state["mode"] == "NORMAL" else "fallback",
+        "uptime_seconds": (datetime.utcnow() - state["control_start_time"]).total_seconds()
+    })
+
+def save_state_snapshot():
+    """Save last known good snapshot to disk (optional persistence)"""
+    try:
+        if state["snapshot"] and state["snapshot"].get("valid"):
+            with open("state.json.tmp", "w") as f:
+                json.dump({
+                    "snapshot": state["snapshot"],
+                    "mode": state["mode"],
+                    "timestamp": datetime.utcnow().isoformat()
+                }, f, indent=2)
+            # Atomic write
+            import os
+            os.replace("state.json.tmp", "state.json")
+    except Exception as e:
+        logger.error(f"Failed to save state snapshot: {e}")
+
+def run_control_service():
+    """Main entry point for control service"""
+    logger.warning("=== Skymonitor Control Service Starting ===")
+    
+    settings = load_settings()
+    setup_gpio()
+    
+    # Enforce safe defaults at startup
+    set_relays(fan_on=True, heater_on=False)
+    
+    logger.warning(f"Control loop interval: {settings['sleep_time']} seconds")
+    logger.warning(f"Primary endpoint: {settings['primary_endpoint']}")
+    logger.warning(f"Fallback endpoint: {settings['fallback_endpoint']}")
+    
+    # Start Flask API in background thread
+    from threading import Thread
+    api_thread = Thread(target=lambda: app.run(
+        host='127.0.0.1',
+        port=settings['control_port'],
+        debug=False,
+        use_reloader=False
+    ))
+    api_thread.daemon = True
+    api_thread.start()
+    logger.warning(f"Local API started on http://127.0.0.1:{settings['control_port']}")
+    
+    # Main control loop
+    try:
+        while True:
+            start_time = time.time()
+            
+            # Reload settings each iteration
+            settings = load_settings()
+            
+            # Run control logic
+            control_loop_iteration(settings)
+            
+            # Save state periodically (every 10th cycle)
+            if state["cycle_count"] % 10 == 0:
+                save_state_snapshot()
+            
+            # Sleep for configured interval
+            elapsed = time.time() - start_time
+            sleep_time = max(settings["sleep_time"] - elapsed, 0)
+            time.sleep(sleep_time)
+            
     except KeyboardInterrupt:
-        logger.info("Program stopped by user")
+        logger.warning("Control service stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error in control loop: {e}")
+        raise
     finally:
         if GPIO_AVAILABLE:
+            # Enforce safe defaults on shutdown
+            GPIO.output(RELAY_FAN_IN, GPIO.LOW)   # Fan ON
+            GPIO.output(RELAY_FAN_OUT, GPIO.LOW)  # Fan ON
+            GPIO.output(RELAY_HEATER, GPIO.HIGH)  # Heater OFF
             GPIO.cleanup()
+        logger.warning("Control service shutdown complete")
+
+if __name__ == '__main__':
+    run_control_service()
