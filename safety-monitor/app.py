@@ -90,6 +90,8 @@ def index():
             "camera_temp": snapshot.get("camera_temp"),
             "fan_status": status.get("fan_status", "UNKNOWN"),
             "heater_status": status.get("heater_status", "UNKNOWN"),
+            "fan_mode": status.get("fan_mode", "AUTO"),
+            "heater_mode": status.get("heater_mode", "AUTO"),
             "raining": snapshot.get("raining"),
             "wind": snapshot.get("wind"),
             "sky_temperature": snapshot.get("sky_temperature"),
@@ -210,6 +212,74 @@ def disable_alert():
     set_alert_active(False)
     flash('Rain alert disabled', 'success')
     return redirect(url_for('index'))
+
+@app.route('/control/fan', methods=['POST'])
+def control_fan():
+    """Manual fan control endpoint"""
+    try:
+        command = request.form.get('command', request.json.get('command') if request.is_json else None)
+        if not command:
+            flash('No command provided', 'error')
+            return redirect(url_for('index'))
+        
+        # Forward to control service
+        url = f"{get_control_api_url()}/actuators"
+        response = requests.post(url, json={"fan": command}, timeout=2)
+        response.raise_for_status()
+        
+        result = response.json()
+        if result.get("fan", {}).get("error"):
+            flash(f'Fan control error: {result["fan"]["error"]}', 'error')
+        else:
+            flash(f'Fan: {result["fan"]["message"]}', 'success')
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"Fan control error: {e}")
+        flash(f'Fan control failed: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/control/heater', methods=['POST'])
+def control_heater():
+    """Manual heater control endpoint"""
+    try:
+        command = request.form.get('command', request.json.get('command') if request.is_json else None)
+        if not command:
+            flash('No command provided', 'error')
+            return redirect(url_for('index'))
+        
+        # Forward to control service
+        url = f"{get_control_api_url()}/actuators"
+        response = requests.post(url, json={"heater": command}, timeout=2)
+        response.raise_for_status()
+        
+        result = response.json()
+        if result.get("heater", {}).get("error"):
+            flash(f'Heater control error: {result["heater"]["error"]}', 'error')
+        else:
+            flash(f'Heater: {result["heater"]["message"]}', 'success')
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"Heater control error: {e}")
+        flash(f'Heater control failed: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/control/reset', methods=['POST'])
+def control_reset():
+    """Reset both actuators to AUTO mode"""
+    try:
+        # Forward to control service
+        url = f"{get_control_api_url()}/actuators"
+        response = requests.post(url, json={"fan": "auto", "heater": "auto"}, timeout=2)
+        response.raise_for_status()
+        
+        flash('All actuators reset to AUTO mode', 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"Reset control error: {e}")
+        flash(f'Reset failed: {str(e)}', 'error')
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     # Ensure alert status file exists

@@ -33,7 +33,17 @@
     </style>
 </head>
 <body>
-    <div id="app"> <!-- Ensure Vue controls this part of the DOM -->
+    <div id="app">
+        <!-- Flask Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Vue Status Messages -->
         <div v-if="statusMessage" class="alert" :class="{'alert-success': isSuccess, 'alert-error': !isSuccess}">
             [[ statusMessage ]]
         </div>
@@ -44,8 +54,58 @@
         <div>
             <p>Alert is currently: [[ alertActive ? 'Enabled' : 'Disabled' ]]</p>
             <button @click="toggleAlert" :style="{backgroundColor: alertActive ? '#d32f2f' : '#388e3c', color: 'white'}">[[ alertActive ? 'Disable Alert' : 'Enable Alert' ]]</button>
-        </div>        <div>
-            <h2>Links</h1>
+        </div>
+        <div>
+            <h2>Manual Actuator Control</h2>
+            <div style="margin: 10px 0;">
+                <strong>Fan Control:</strong>
+                <span style="color: {{ '#FFA500' if data.fan_mode == 'MANUAL' else '#00FF00' }}">
+                    {{ data.fan_mode }} - {{ data.fan_status }}
+                </span>
+                <br>
+                <form method="POST" action="/control/fan" style="display: inline;">
+                    <input type="hidden" name="command" value="on">
+                    <button type="submit" style="background-color: #388e3c; color: white; margin: 5px;">Fan ON</button>
+                </form>
+                <form method="POST" action="/control/fan" style="display: inline;">
+                    <input type="hidden" name="command" value="off">
+                    <button type="submit" style="background-color: #d32f2f; color: white; margin: 5px;">Fan OFF</button>
+                </form>
+                <form method="POST" action="/control/fan" style="display: inline;">
+                    <input type="hidden" name="command" value="auto">
+                    <button type="submit" style="background-color: #1976d2; color: white; margin: 5px;">Fan AUTO</button>
+                </form>
+            </div>
+            <div style="margin: 10px 0;">
+                <strong>Heater Control:</strong>
+                <span style="color: {{ '#FFA500' if data.heater_mode == 'MANUAL' else '#00FF00' }}">
+                    {{ data.heater_mode }} - {{ data.heater_status }}
+                </span>
+                <br>
+                <form method="POST" action="/control/heater" style="display: inline;">
+                    <input type="hidden" name="command" value="on">
+                    <button type="submit" style="background-color: #388e3c; color: white; margin: 5px;">Heater ON</button>
+                </form>
+                <form method="POST" action="/control/heater" style="display: inline;">
+                    <input type="hidden" name="command" value="off">
+                    <button type="submit" style="background-color: #d32f2f; color: white; margin: 5px;">Heater OFF</button>
+                </form>
+                <form method="POST" action="/control/heater" style="display: inline;">
+                    <input type="hidden" name="command" value="auto">
+                    <button type="submit" style="background-color: #1976d2; color: white; margin: 5px;">Heater AUTO</button>
+                </form>
+            </div>
+            <div style="margin: 10px 0;">
+                <form method="POST" action="/control/reset" style="display: inline;">
+                    <button type="submit" style="background-color: #ff9800; color: white; margin: 5px; font-weight: bold;">RESET ALL TO AUTO</button>
+                </form>
+            </div>
+            <p style="font-size: 0.9em; color: #FFA500; margin-top: 10px;">
+                ⚠️ Note: Manual commands are validated for safety. Critical conditions may override manual settings.
+            </p>
+        </div>
+        <div>
+            <h2>Links</h2>
                 <ul>
                 <li><a href="http://allsky.local/allsky/index.php">Sky Monitor Camera</a></li>
                 <li><a href="/settings">Settings</a></li>
