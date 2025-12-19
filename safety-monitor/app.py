@@ -55,53 +55,70 @@ def fetch_control_health():
 @app.route('/')
 def index():
     """Main dashboard page"""
-    status = fetch_control_status()
-    health = fetch_control_health()
-    settings = load_settings()
-    
-    # Format snapshot data for display
-    snapshot = status.get("snapshot", {})
-    
-    # Calculate age display
-    age_seconds = status.get("age_seconds")
-    age_display = "N/A"
-    if age_seconds is not None:
-        if age_seconds < 60:
-            age_display = f"{int(age_seconds)}s"
-        elif age_seconds < 3600:
-            age_display = f"{int(age_seconds / 60)}m"
-        else:
-            age_display = f"{int(age_seconds / 3600)}h"
-    
-    # Prepare display data
-    display_data = {
-        "timestamp": snapshot.get("received_timestamp", "N/A"),
-        "age": age_display,
-        "mode": status.get("mode", "UNKNOWN"),
-        "temperature": snapshot.get("temperature"),
-        "humidity": snapshot.get("humidity"),
-        "dew_point": snapshot.get("dew_point"),
-        "heat_index": snapshot.get("heat_index"),
-        "cpu_temperature": snapshot.get("cpu_temperature"),
-        "camera_temp": snapshot.get("camera_temp"),
-        "fan_status": status.get("fan_status", "UNKNOWN"),
-        "heater_status": status.get("heater_status", "UNKNOWN"),
-        "raining": snapshot.get("raining"),
-        "wind": snapshot.get("wind"),
-        "sky_temperature": snapshot.get("sky_temperature"),
-        "ambient_temperature": snapshot.get("ambient_temperature"),
-        "sqm_lux": snapshot.get("sqm_lux"),
-        "cloud_coverage": snapshot.get("cloud_coverage"),
-        "brightness": snapshot.get("brightness"),
-        "bortle": snapshot.get("bortle"),
-        "star_count": snapshot.get("star_count"),
-        "day_or_night": snapshot.get("day_or_night"),
-        "uptime": health.get("uptime_seconds"),
-        "cycle_count": status.get("cycle_count"),
-        "last_error": status.get("last_error")
-    }
-    
-    return render_template('index.html', data=display_data)
+    try:
+        status = fetch_control_status()
+        health = fetch_control_health()
+        settings = load_settings()
+        
+        # Format snapshot data for display
+        snapshot = status.get("snapshot", {}) if status and not status.get("error") else {}
+        
+        # Calculate age display
+        age_seconds = status.get("age_seconds")
+        age_display = "N/A"
+        if age_seconds is not None:
+            try:
+                if age_seconds < 60:
+                    age_display = f"{int(age_seconds)}s"
+                elif age_seconds < 3600:
+                    age_display = f"{int(age_seconds / 60)}m"
+                else:
+                    age_display = f"{int(age_seconds / 3600)}h"
+            except (TypeError, ValueError):
+                age_display = "N/A"
+        
+        # Prepare display data with safe defaults
+        display_data = {
+            "timestamp": snapshot.get("received_timestamp", "N/A"),
+            "age": age_display,
+            "mode": status.get("mode", "ERROR"),
+            "temperature": snapshot.get("temperature"),
+            "humidity": snapshot.get("humidity"),
+            "dew_point": snapshot.get("dew_point"),
+            "heat_index": snapshot.get("heat_index"),
+            "cpu_temperature": snapshot.get("cpu_temperature"),
+            "camera_temp": snapshot.get("camera_temp"),
+            "fan_status": status.get("fan_status", "UNKNOWN"),
+            "heater_status": status.get("heater_status", "UNKNOWN"),
+            "raining": snapshot.get("raining"),
+            "wind": snapshot.get("wind"),
+            "sky_temperature": snapshot.get("sky_temperature"),
+            "ambient_temperature": snapshot.get("ambient_temperature"),
+            "sqm_lux": snapshot.get("sqm_lux"),
+            "cloud_coverage": snapshot.get("cloud_coverage"),
+            "brightness": snapshot.get("brightness"),
+            "bortle": snapshot.get("bortle"),
+            "star_count": snapshot.get("star_count"),
+            "day_or_night": snapshot.get("day_or_night"),
+            "uptime": health.get("uptime_seconds") if health and not health.get("error") else None,
+            "cycle_count": status.get("cycle_count"),
+            "last_error": status.get("last_error") or status.get("error") or health.get("error")
+        }
+        
+        alert_active = get_alert_active()
+        return render_template('index.html', data=display_data, alert_active=alert_active)
+    except Exception as e:
+        logger.error(f"Error rendering index page: {e}")
+        # Return minimal safe page
+        return render_template('index.html',
+            data={
+                "mode": "ERROR",
+                "last_error": f"Flask UI error: {str(e)}",
+                "fan_status": "UNKNOWN",
+                "heater_status": "UNKNOWN"
+            },
+            alert_active=False
+        )
 
 @app.route('/data')
 def data_api():
