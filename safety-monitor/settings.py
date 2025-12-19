@@ -1,5 +1,13 @@
 import os
 import json
+import logging
+from app_logging import setup_logger
+
+logger = setup_logger(
+    name="settings",
+    log_file="settings.log",
+    level=logging.INFO
+)
 
 def load_settings():
     default_settings = {
