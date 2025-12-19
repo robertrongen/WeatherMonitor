@@ -25,11 +25,7 @@ def load_settings():
         "http_timeout_seconds": 2,
         "retry_backoff_seconds": 2,
         "fallback_retry_interval_seconds": 300,
-        "heater_min_off_time_seconds": 600,
-        "temp_hum_url": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-        "serial_port_rain": "/dev/ttyUSB1",
-        "serial_port_json": "/dev/ttyUSB0",
-        "baud_rate": 115200
+        "heater_min_off_time_seconds": 600
     }
 
     settings_path = 'settings.json'

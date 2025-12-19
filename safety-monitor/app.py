@@ -135,12 +135,6 @@ def settings_page():
             # String values
             settings['primary_endpoint'] = request.form.get('primary_endpoint', settings['primary_endpoint'])
             settings['fallback_endpoint'] = request.form.get('fallback_endpoint', settings['fallback_endpoint'])
-            settings['temp_hum_url'] = request.form.get('temp_hum_url', settings['temp_hum_url'])
-
-            # Legacy serial settings (kept for backward compatibility)
-            settings['serial_port_rain'] = request.form.get('serial_port_rain', settings.get('serial_port_rain', '/dev/ttyUSB0'))
-            settings['serial_port_json'] = request.form.get('serial_port_json', settings.get('serial_port_json', '/dev/ttyUSB1'))
-            settings['baud_rate'] = int(request.form.get('baud_rate', settings.get('baud_rate', 115200)))
 
             # Save updated settings
             with open('settings.json', 'w') as f:

@@ -23,7 +23,7 @@ def send_pushover_notification(user_key, api_token, message):
     return response.text
 
 def check_rain_alert(average_rain):
-    """Check for rain alerts from the serial port and send notifications."""
+    """Check for rain alerts from HTTP sensor data and send notifications."""
     alert_active = get_alert_active()  # Get the current alert state from the file
     if not alert_active:
         logger.info("Rain alert not active")

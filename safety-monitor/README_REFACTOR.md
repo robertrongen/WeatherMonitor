@@ -174,7 +174,7 @@ The Skymonitor Safety Monitor has been refactored from a serial-based, database-
   "sleep_time": 10,
   "control_port": 5001,
   "primary_endpoint": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
-  "fallback_endpoint": "https://meetjestad.net/data/?type=sensors&ids=580&format=json&limit=1",
+  "fallback_endpoint": "https://meetjestad.net/data/?type=sensors&ids=1087&format=json&limit=1",
   "primary_failure_threshold": 3,
   "max_data_age_seconds": 300,
   "http_timeout_seconds": 2,
