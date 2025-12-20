@@ -107,7 +107,8 @@ def setup_logger(name, log_file, level=logging.INFO):
     try:
         logger = logging.getLogger(name)
         setup_handlers(logger, log_file, log_level=level)  # Setup with console output
-        setup_email_logging(logger)
+        if os.getenv("ENABLE_EMAIL_LOGGING") == "1":
+            setup_email_logging(logger)
         return logger
     except Exception as e:
         sys.stderr.write("Failed to set up logger: {}\n".format(e))
