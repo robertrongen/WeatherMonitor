@@ -10,6 +10,42 @@ The Safety Monitor integrates data from multiple sources:
 - **Meet je Stad Node 580** (external API): Temperature and humidity
 - **Legacy USB serial sensors** (deprecated): Arduino Nano + ESP8266 (will be removed in Phase 4)
 
+## GPIO Architecture
+
+The system controls hardware relays on the Waveshare RPi Relay Board using **lgpio** (not RPi.GPIO).
+
+### Critical Requirements
+
+**The virtual environment MUST be created with `--system-site-packages`:**
+```bash
+python3 -m venv venv --system-site-packages
+```
+
+If the virtual environment is created without `--system-site-packages`, GPIO will **silently fall back to mock mode** and hardware will not respond.
+
+### Why lgpio?
+
+- **Modern GPIO library:** lgpio is the current standard for Raspberry Pi OS (Trixie / Python ≥ 3.12)
+- **System-level installation:** lgpio is installed system-wide via `python3-rpi-lgpio` (APT package)
+- **Exclusive GPIO access:** [`control.py`](control.py) claims GPIO pins 26, 20, 21 for relay control
+- **Active-low relays:** Relay board uses active-low logic (LOW = ON, HIGH = OFF)
+
+### Why Not RPi.GPIO?
+
+RPi.GPIO is deprecated and no longer recommended for modern Raspberry Pi OS installations.
+
+### Why System Site Packages?
+
+- **lgpio** is installed system-wide and cannot be pip-installed into a standard venv
+- **Python dependencies** (meteocalc, Flask, requests) must be installed in the venv
+- **Both requirements** are satisfied by creating the venv with `--system-site-packages`
+- Without this flag, [`control.py`](control.py) will import successfully but fall back to mock GPIO mode
+
+### Architecture Split
+
+- **[`control.py`](control.py)**: Direct GPIO access, controls relays, runs as systemd service
+- **[`app.py`](app.py)**: HTTP API client, no GPIO access, communicates with [`control.py`](control.py) via `http://127.0.0.1:5001`
+
 ## Services
 
 ### app.service
@@ -26,6 +62,7 @@ Main orchestration loop:
 - Controls Waveshare RPi Relay Board (fan/heater via GPIO 26, 20, 21)
 - Stores data in SQLite database
 - Triggers rain alerts
+- **Must run using venv Python with system site packages access**
 
 ### system_monitor.service
 Collects Raspberry Pi metrics (CPU temp, memory, disk usage)

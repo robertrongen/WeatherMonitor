@@ -1,32 +1,74 @@
 # Skymonitor Safety Monitor - Deployment Quickstart
 
-**Architecture Version:** 2.0 (HTTP-only)  
-**Last Updated:** 2025-12-19
+**Architecture Version:** 2.0 (HTTP-only)
+**Last Updated:** 2025-12-21
 
 ---
 
 ## Pre-Deployment Checklist
 
-- [ ] Raspberry Pi with Raspbian/Debian OS
-- [ ] Python 3.9+ installed
+- [ ] Raspberry Pi with Raspbian/Debian OS (Trixie or newer recommended)
+- [ ] Python 3.9+ installed (Python 3.12+ recommended)
 - [ ] Network connectivity verified
 - [ ] GPIO access available (user in `gpio` group)
-- [ ] Waveshare RPi Relay Board connected
+- [ ] **System GPIO package installed:** `python3-rpi-lgpio` via APT
+- [ ] Waveshare RPi Relay Board connected to GPIO pins 26, 20, 21
 - [ ] Existing database backed up (if migrating from v1)
 
 ---
 
 ## Quick Deployment (5 minutes)
 
-### Step 1: Prepare Environment
+### Step 1: Install System GPIO Package
+
+**Required for hardware relay control:**
+```bash
+sudo apt update
+sudo apt install python3-rpi-lgpio
+```
+
+Verify installation:
+```bash
+python3 -c "import lgpio; print('lgpio installed system-wide')"
+```
+
+### Step 2: Create Virtual Environment with System Site Packages
+
+**Critical:** The venv MUST include `--system-site-packages` to access lgpio:
 
 ```bash
 cd /home/robert/github/skymonitor
+python3 -m venv venv --system-site-packages
+```
+
+**Why this is required:**
+- lgpio is installed system-wide and cannot be pip-installed
+- Without `--system-site-packages`, GPIO will silently fall back to mock mode
+- This is intentional and required, not optional
+
+### Step 3: Install Python Dependencies
+
+```bash
 source venv/bin/activate
 pip install -r safety-monitor/requirements.txt
 ```
 
-### Step 2: Configure Settings
+### Step 4: Verify GPIO Availability Inside Venv
+
+```bash
+source venv/bin/activate
+python -c "import lgpio; print('lgpio OK')"
+```
+
+If this fails, the venv was not created with `--system-site-packages`. Delete it and recreate:
+```bash
+rm -rf venv
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+pip install -r safety-monitor/requirements.txt
+```
+
+### Step 5: Configure Settings
 
 ```bash
 cd safety-monitor
@@ -45,7 +87,7 @@ nano settings.json
 }
 ```
 
-### Step 3: Test Control Service
+### Step 6: Test Control Service
 
 ```bash
 # Run control service manually to verify
@@ -54,7 +96,17 @@ python3 control.py
 # Press Ctrl+C after 30 seconds if no errors
 ```
 
-### Step 4: Install Services
+### Step 7: Install Systemd Services
+
+**Important:** The control.service MUST use venv Python with system site packages access.
+
+Verify the service file uses the correct Python path:
+```bash
+cat ../admin/control.service | grep ExecStart
+# Should show: ExecStart=/home/robert/github/skymonitor/venv/bin/python ...
+```
+
+Install services:
 
 ```bash
 # Copy service files
@@ -72,7 +124,7 @@ sudo systemctl start control.service
 sudo systemctl start app.service
 ```
 
-### Step 5: Verify Operation
+### Step 8: Verify Operation
 
 ```bash
 # Check service status
@@ -87,7 +139,7 @@ curl http://127.0.0.1:5001/status | jq
 # http://[raspberry-pi-ip]:5000
 ```
 
-### Step 6: Disable Old Services (if migrating)
+### Step 9: Disable Old Services (if migrating)
 
 ```bash
 sudo systemctl stop store_data.service system_monitor.service
@@ -118,6 +170,82 @@ top -p $(pgrep -f control.py) -n 1
 ---
 
 ## Troubleshooting
+
+### Fan Does Not Run / Relays Do Not Click
+
+**This is the most common deployment issue.** Hardware will silently fail if GPIO is not properly configured.
+
+Follow this checklist systematically:
+
+#### 1. Check for Mock Mode in Control Logs
+
+```bash
+journalctl -u control.service -n 100 | grep -i mock
+```
+
+If you see "mock mode" or "MockGPIO", the hardware is not being controlled.
+
+#### 2. Verify lgpio Import Inside Venv
+
+```bash
+source /home/robert/github/skymonitor/venv/bin/activate
+python -c "import lgpio; print('lgpio OK')"
+```
+
+**If this fails with `ModuleNotFoundError`:** The venv does not have system site packages access.
+
+#### 3. Verify Venv Was Created with --system-site-packages
+
+```bash
+cat /home/robert/github/skymonitor/venv/pyvenv.cfg | grep system-site-packages
+# Should show: include-system-site-packages = true
+```
+
+**If it shows `false`:** Recreate the venv correctly:
+```bash
+cd /home/robert/github/skymonitor
+rm -rf venv
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+pip install -r safety-monitor/requirements.txt
+sudo systemctl restart control.service
+```
+
+#### 4. Verify GPIO Pin Is Not "Busy"
+
+```bash
+journalctl -u control.service -n 100 | grep -i "busy\|claimed"
+```
+
+**If GPIO pins show as "busy":** Another process (or previous control instance) has claimed them.
+
+**Solution:**
+```bash
+sudo systemctl stop control.service
+# Wait 5 seconds
+sudo systemctl start control.service
+```
+
+If still busy after restart, reboot the Raspberry Pi.
+
+#### 5. Verify Systemd Service Uses Venv Python
+
+```bash
+systemctl cat control.service | grep ExecStart
+# Should show: /home/robert/github/skymonitor/venv/bin/python
+```
+
+**If using system Python:** The service will fail because it lacks venv-installed dependencies (meteocalc, Flask, requests).
+
+#### Root Cause Summary
+
+- **lgpio** is installed system-wide via APT
+- **Python dependencies** are installed in the venv via pip
+- **Without `--system-site-packages`:** venv cannot see lgpio
+- **Result:** [`control.py`](../control.py) silently falls back to mock mode
+- **Symptom:** API works, logs look normal, but relays never click
+
+---
 
 ### Control service fails to start
 

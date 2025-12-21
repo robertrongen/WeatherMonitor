@@ -1,7 +1,58 @@
 # Systemd Service Configuration (HTTP-only Architecture)
 
-**Last Updated:** 2025-12-19  
+**Last Updated:** 2025-12-21
 **Architecture:** HTTP polling, no database, minimal disk I/O
+
+---
+
+## Critical: GPIO and Virtual Environment Setup
+
+### System Requirements
+
+The [`control.service`](control.service) requires **GPIO access with system-level packages**.
+
+**Virtual environment MUST be created with `--system-site-packages`:**
+```bash
+python3 -m venv venv --system-site-packages
+```
+
+### Why This Is Required
+
+- **lgpio** is installed system-wide via APT (`python3-rpi-lgpio`)
+- **Python dependencies** (meteocalc, Flask, requests) are installed in venv via pip
+- **Without `--system-site-packages`:** venv cannot see lgpio
+- **Result:** [`control.py`](../safety-monitor/control.py) silently falls back to mock mode
+- **Symptom:** API works, logs look normal, but relays never click
+
+### Verification
+
+Before installing services, verify GPIO is accessible in the venv:
+
+```bash
+source /home/robert/github/skymonitor/venv/bin/activate
+python -c "import lgpio; print('lgpio OK')"
+```
+
+If this fails, recreate the venv:
+```bash
+cd /home/robert/github/skymonitor
+rm -rf venv
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+pip install -r safety-monitor/requirements.txt
+```
+
+### Service File Requirements
+
+The [`control.service`](control.service) **must use venv Python** (not system Python):
+
+```ini
+ExecStart=/home/robert/github/skymonitor/venv/bin/python3 /home/robert/github/skymonitor/safety-monitor/control.py
+```
+
+**Why not system Python?**
+- System Python lacks venv-installed dependencies (meteocalc, Flask, requests)
+- Will fail to start or miss critical calculations
 
 ---
 
@@ -150,6 +201,38 @@ Open browser to: `http://allsky.local:5000`
 
 ## Troubleshooting
 
+### Fan Does Not Run / Relays Do Not Click
+
+**This is the most common issue.** If the service runs but hardware doesn't respond:
+
+1. **Check for mock mode:**
+   ```bash
+   journalctl -u control.service -n 100 | grep -i mock
+   ```
+   If you see "mock mode", GPIO is not accessible.
+
+2. **Verify lgpio in venv:**
+   ```bash
+   source /home/robert/github/skymonitor/venv/bin/activate
+   python -c "import lgpio; print('lgpio OK')"
+   ```
+
+3. **Check venv configuration:**
+   ```bash
+   cat /home/robert/github/skymonitor/venv/pyvenv.cfg | grep system-site-packages
+   # Should show: include-system-site-packages = true
+   ```
+
+4. **If false, recreate venv:**
+   ```bash
+   cd /home/robert/github/skymonitor
+   rm -rf venv
+   python3 -m venv venv --system-site-packages
+   source venv/bin/activate
+   pip install -r safety-monitor/requirements.txt
+   sudo systemctl restart control.service
+   ```
+
 ### Control Service Won't Start
 
 1. Check Python path and venv:
@@ -171,6 +254,8 @@ Open browser to: `http://allsky.local:5000`
    ```bash
    groups robert
    # Ensure 'gpio' group membership
+   sudo usermod -a -G gpio robert
+   # Logout and login again
    ```
 
 ### Dependency Issues
