@@ -6,12 +6,16 @@ import time
 import json
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from flask import Flask, jsonify, request
 from settings import load_settings
-from fetch_data import fetch_sensor_data_http, validate_snapshot
+from fetch_data import fetch_sensor_data_http
 from weather_indicators import calculate_indicators, calculate_dewPoint
 from meteocalc import heat_index, Temp
+
+def utcnow():
+    """Return timezone-aware UTC datetime"""
+    return datetime.now(timezone.utc)
 
 # Minimal logging - WARN and ERROR only
 logging.basicConfig(
@@ -60,7 +64,7 @@ def set_relays(fan_on, heater_on):
         except Exception as e:
             logger.error(f"GPIO operation failed: {e}")
 
-# Global state for control service
+# Global state for control servicedatetime 
 state = {
     "snapshot": None,
     "mode": "INITIALIZING",  # NORMAL | FALLBACK | STALE | ERROR
@@ -70,7 +74,7 @@ state = {
     "primary_failure_count": 0,
     "last_primary_attempt": None,
     "last_error": None,
-    "control_start_time": datetime.utcnow(),
+    "control_start_time": utcnow(),
     "cycle_count": 0,
     "fan_override": None,  # None = AUTO, True = MANUAL ON, False = MANUAL OFF
     "heater_override": None,  # None = AUTO, True = MANUAL ON, False = MANUAL OFF
@@ -196,7 +200,7 @@ def apply_safety_logic(snapshot, settings):
             
             # Check minimum off time
             if state["last_heater_off_time"] is not None:
-                elapsed = (datetime.utcnow() - state["last_heater_off_time"]).total_seconds()
+                elapsed = (utcnow()- state["last_heater_off_time"]).total_seconds()
                 min_off_time_passed = elapsed >= settings["heater_min_off_time_seconds"]
             
             if dew_risk and no_rain and min_off_time_passed:
@@ -215,7 +219,7 @@ def apply_safety_logic(snapshot, settings):
             logger.warning(rejection_reason)
         # Check minimum off time even in manual mode
         if heater_on and state["last_heater_off_time"] is not None:
-            elapsed = (datetime.utcnow() - state["last_heater_off_time"]).total_seconds()
+            elapsed = (utcnow()- state["last_heater_off_time"]).total_seconds()
             if elapsed < settings["heater_min_off_time_seconds"]:
                 heater_on = False
                 rejection_reason = f"Heater manual override rejected: min off time not met ({int(elapsed)}s / {settings['heater_min_off_time_seconds']}s)"
@@ -223,13 +227,13 @@ def apply_safety_logic(snapshot, settings):
     
     # Record heater state change
     if not heater_on and state["heater_status"] == "ON":
-        state["last_heater_off_time"] = datetime.utcnow()
+        state["last_heater_off_time"] = utcnow()
     
     # Record rejection if override was rejected by safety rules
     if rejection_reason:
         with state_lock:
             state["last_override_action"] = rejection_reason
-            state["last_override_time"] = datetime.utcnow().isoformat() + "Z"
+            state["last_override_time"] = utcnow().isoformat() + "Z"
     
     state["fan_status"] = "ON" if fan_on else "OFF"
     state["heater_status"] = "ON" if heater_on else "OFF"
@@ -242,7 +246,7 @@ def fetch_and_update_snapshot(settings):
     Returns True if successful, False otherwise.
     """
     use_primary = True
-    now = datetime.utcnow()
+    now = utcnow()
     
     # Check if we should retry primary after fallback period
     if state["mode"] == "FALLBACK":
@@ -343,7 +347,7 @@ def api_status():
     if snapshot.get("received_timestamp"):
         try:
             received_dt = datetime.fromisoformat(snapshot["received_timestamp"])
-            age = (datetime.utcnow() - received_dt).total_seconds()
+            age = (utcnow()- received_dt).total_seconds()
         except:
             pass
     
@@ -361,7 +365,7 @@ def api_status():
         "heater_mode": heater_mode,
         "last_error": last_error,
         "cycle_count": cycle_count,
-        "uptime_seconds": (datetime.utcnow() - control_start_time).total_seconds(),
+        "uptime_seconds": (utcnow()- control_start_time).total_seconds(),
         "last_override_action": last_override_action,
         "last_override_time": last_override_time
     })
@@ -435,7 +439,7 @@ def api_actuators():
         if override_action_parts:
             with state_lock:
                 state["last_override_action"] = ", ".join(override_action_parts)
-                state["last_override_time"] = datetime.utcnow().isoformat() + "Z"
+                state["last_override_time"] = utcnow().isoformat() + "Z"
         
         # Immediately apply safety logic with new overrides
         settings = load_settings()
@@ -463,7 +467,7 @@ def api_health():
         "status": "running",
         "mode": state["mode"],
         "active_endpoint": "primary" if state["mode"] == "NORMAL" else "fallback",
-        "uptime_seconds": (datetime.utcnow() - state["control_start_time"]).total_seconds()
+        "uptime_seconds": (utcnow()- state["control_start_time"]).total_seconds()
     })
 
 def save_state_snapshot():
@@ -474,7 +478,7 @@ def save_state_snapshot():
                 json.dump({
                     "snapshot": state["snapshot"],
                     "mode": state["mode"],
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": utcnow().isoformat()
                 }, f, indent=2)
             # Atomic write
             import os
