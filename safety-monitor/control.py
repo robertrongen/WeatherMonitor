@@ -22,11 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger('control')
 
 # GPIO setup
+GPIO_CHIP = None
 try:
-    import RPi.GPIO as GPIO
+    import lgpio
     GPIO_AVAILABLE = True
-except (ImportError, RuntimeError):
-    logger.warning("GPIO library not available, running in mock mode")
+except ImportError as e:
+    logger.warning(f"GPIO library not available, running in mock mode: {e}")
     GPIO_AVAILABLE = False
 
 # Relay GPIO pins (Waveshare RPi Relay Board)
@@ -35,15 +36,17 @@ RELAY_HEATER = 20
 RELAY_FAN_OUT = 21
 
 def setup_gpio():
+    global GPIO_CHIP
     """Initialize GPIO pins for relay control"""
     if GPIO_AVAILABLE:
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        # Initialize all relays to safe defaults: fans ON (LOW), heater OFF (HIGH)
-        GPIO.setup([RELAY_FAN_IN, RELAY_HEATER, RELAY_FAN_OUT], GPIO.OUT, initial=GPIO.HIGH)
-        GPIO.output(RELAY_FAN_IN, GPIO.LOW)   # Fan ON
-        GPIO.output(RELAY_FAN_OUT, GPIO.LOW)  # Fan ON
-        GPIO.output(RELAY_HEATER, GPIO.HIGH)  # Heater OFF
+        GPIO_CHIP = lgpio.gpiochip_open(0)
+        for pin in [RELAY_FAN_IN, RELAY_FAN_OUT, RELAY_HEATER]:
+            lgpio.gpio_claim_output(GPIO_CHIP, pin, 1)
+
+        # Safe defaults
+        lgpio.gpio_write(GPIO_CHIP, RELAY_FAN_IN, 0)
+        lgpio.gpio_write(GPIO_CHIP, RELAY_FAN_OUT, 0)
+        lgpio.gpio_write(GPIO_CHIP, RELAY_HEATER, 1)
         logger.warning("GPIO initialized - safe defaults applied (fans ON, heater OFF)")
 
 def set_relays(fan_on, heater_on):
@@ -51,9 +54,9 @@ def set_relays(fan_on, heater_on):
     if GPIO_AVAILABLE:
         try:
             # Relays are active LOW
-            GPIO.output(RELAY_FAN_IN, GPIO.LOW if fan_on else GPIO.HIGH)
-            GPIO.output(RELAY_FAN_OUT, GPIO.LOW if fan_on else GPIO.HIGH)
-            GPIO.output(RELAY_HEATER, GPIO.LOW if heater_on else GPIO.HIGH)
+            lgpio.gpio_write(GPIO_CHIP, RELAY_FAN_IN, 0 if fan_on else 1)
+            lgpio.gpio_write(GPIO_CHIP, RELAY_FAN_OUT, 0 if fan_on else 1)
+            lgpio.gpio_write(GPIO_CHIP, RELAY_HEATER, 0 if heater_on else 1)
         except Exception as e:
             logger.error(f"GPIO operation failed: {e}")
 
