@@ -8,6 +8,21 @@
     </head>
     <body>
         <h1>System Monitor Dashboard</h1>
+        
+        {% if status.error or health.error %}
+        <div style="background: #ffcccc; padding: 15px; margin: 10px 0; border: 2px solid #cc0000;">
+            <h2>⚠️ Control Service Unavailable</h2>
+            <p><strong>Status:</strong> {{ status.error or health.error }}</p>
+            <p>The control service at port {{ status.get('control_port', 5001) }} is not responding.</p>
+            <p><strong>Troubleshooting:</strong></p>
+            <ul>
+                <li>Check if control.py is running: <code>sudo systemctl status control.service</code></li>
+                <li>Check control logs: <code>journalctl -u control.service -n 50</code></li>
+                <li>Verify port {{ status.get('control_port', 5001) }} is not in use: <code>sudo lsof -i :5001</code></li>
+            </ul>
+        </div>
+        {% endif %}
+        
         <ul>
             <li><a href="{{ url_for('logwatch_report') }}">View LogWatch Report</a></li>
             <li><a href="/logs/syslog">View Syslog</a></li>
@@ -15,10 +30,19 @@
             <li><a href="/logs/control">View control log</a></li>
             <li><a href="/logs/fetch">View fetch data log</a></li>
         </ul>
+        
+        {% if not status.error and not health.error %}
         <div id="chart" style="width:100%;height:500px;"></div>
+        {% endif %}
+        {% if not status.error and not health.error %}
         <script>
             fetch('/api/metrics_data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch metrics data: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const timestamps = data.map(item => item.timestamp);
                     const cpu_temps = data.map(item => item.cpu_temp);
@@ -59,7 +83,11 @@
 
                     Plotly.newPlot('chart', [trace1, trace2, trace3, trace4], layout);
                 })
-                .catch(error => console.error('Error fetching data:', error));
+                .catch(error => {
+                    console.error('Error fetching metrics data:', error);
+                    document.getElementById('chart').innerHTML = '<p style="color: red; padding: 20px;">Failed to load metrics data. Control service may be unavailable.</p>';
+                });
         </script>
+        {% endif %}
     </body>
 </html>

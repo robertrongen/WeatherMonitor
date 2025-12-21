@@ -495,15 +495,40 @@ def run_control_service():
     
     # Start Flask API in background thread
     from threading import Thread
-    api_thread = Thread(target=lambda: app.run(
-        host='127.0.0.1',
-        port=settings['control_port'],
-        debug=False,
-        use_reloader=False
-    ))
+    import socket
+    
+    def run_flask_api():
+        """Run Flask API with explicit error logging"""
+        try:
+            logger.warning(f"Attempting to bind Flask API to 127.0.0.1:{settings['control_port']}")
+            app.run(
+                host='127.0.0.1',
+                port=settings['control_port'],
+                debug=False,
+                use_reloader=False
+            )
+        except Exception as e:
+            logger.error(f"FATAL: Flask API failed to start: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    api_thread = Thread(target=run_flask_api)
     api_thread.daemon = True
     api_thread.start()
-    logger.warning(f"Local API started on http://127.0.0.1:{settings['control_port']}")
+    
+    # Verify Flask actually bound to port
+    time.sleep(1)  # Give Flask time to bind
+    try:
+        test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        test_sock.settimeout(2)
+        result = test_sock.connect_ex(('127.0.0.1', settings['control_port']))
+        test_sock.close()
+        if result == 0:
+            logger.warning(f"✓ Flask API successfully bound to http://127.0.0.1:{settings['control_port']}")
+        else:
+            logger.error(f"✗ Flask API NOT reachable on port {settings['control_port']} - control service will not accept connections")
+    except Exception as e:
+        logger.error(f"✗ Unable to verify Flask API startup: {e}")
     
     # Main control loop
     try:
