@@ -15,12 +15,18 @@ def send_pushover(message, priority=0):
     token = os.getenv("PUSHOVER_API_TOKEN")
     user = os.getenv("PUSHOVER_USER_KEY")
 
+    # Diagnostic: Log credential presence (not values)
+    logger.info(f"Pushover credentials check: token={'present' if token else 'MISSING'}, user={'present' if user else 'MISSING'}")
+
     if not token or not user:
-        logger.warning("Pushover credentials missing")
+        logger.error("Pushover credentials missing - cannot send notification")
         return
 
     try:
-        requests.post(
+        # Diagnostic: Log request details
+        logger.info(f"Sending Pushover notification with priority={priority}")
+        
+        response = requests.post(
             "https://api.pushover.net/1/messages.json",
             data={
                 "token": token,
@@ -30,9 +36,23 @@ def send_pushover(message, priority=0):
             },
             timeout=5,
         )
-        logger.info(f"Pushover sent: {message}")
+        
+        # Diagnostic: Log HTTP response
+        logger.info(f"Pushover HTTP status: {response.status_code}")
+        logger.info(f"Pushover response body: {response.text}")
+        
+        # Validate response
+        if response.status_code == 200:
+            logger.info(f"✅ Pushover sent successfully: {message[:50]}...")
+        else:
+            logger.error(f"❌ Pushover API returned error status {response.status_code}: {response.text}")
+            
+    except requests.exceptions.Timeout as e:
+        logger.error(f"Pushover request timeout after 5s: {e}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Pushover network error: {e}")
     except Exception as e:
-        logger.error(f"Pushover failed: {e}")
+        logger.error(f"Pushover unexpected error: {type(e).__name__}: {e}")
 
 def pre_reboot(reason: str):
     # Prevent duplicates

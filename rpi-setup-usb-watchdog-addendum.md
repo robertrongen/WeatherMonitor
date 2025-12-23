@@ -366,3 +366,104 @@ This mechanism cannot recover from:
 - xHCI controller deadlocks
 
 External power cycling remains mandatory for full recovery in those cases.
+
+## 11. Reboot Notifications (Pushover)
+
+This section documents **pre-reboot and post-boot notifications** using Pushover.
+Notifications are designed to be **idempotent** (no repeats) and **Git-controlled**.
+
+### 11.1 Design Overview
+
+- Watchdogs remain **Bash scripts**
+- Notifications are handled by a small **Python helper**
+- State is persisted on disk to correlate reboot → boot
+- Post-boot notification is handled via a `systemd` oneshot service
+
+This allows reliable notification even when the system is unstable.
+
+---
+
+### 11.2 Notification Helper Module
+
+File location (tracked in Git):
+
+`~/WeatherMonitor/safety-monitor/reboot_notify.py`
+
+
+Key properties:
+
+- Uses the same Pushover credentials as `rain_alarm.py`
+- Writes a reboot reason file before reboot
+- Sends exactly one notification per reboot
+- Sends exactly one notification after boot
+- Cleans up state to prevent duplicates
+
+State file location:
+
+`/home/robert/.run/reboot_reason`
+
+This location is user-writable and avoids permission issues with `/var/run`.
+
+---
+
+### 11.3 Pre-Reboot Notification (from Bash Watchdogs)
+
+Before calling `reboot` in any watchdog script, invoke:
+
+```bash
+PYTHONPATH=/home/robert/WeatherMonitor/safety-monitor \
+/home/robert/WeatherMonitor/venv/bin/python \
+  -c "from reboot_notify import pre_reboot; pre_reboot('USB reset storm watchdog')"
+```
+
+This will:
+- Persist the reboot reason
+- Send a Pushover alert (best effort)
+- Prevent duplicate notifications if triggered again
+
+The reboot is then executed normally: `reboot`
+
+### 11.4 Post-Boot Notification (systemd)
+
+Post-boot notification is handled by: `/etc/systemd/system/reboot-notify`.service
+
+This service:
+- Runs once per boot
+- Waits for network availability
+- Sends a “back online” notification
+- Removes the reboot reason file
+
+Service lifecycle:
+- `inactive (dead)` after execution is expected and correct
+- Status `0/SUCCESS` indicates success
+
+### 11.5 Manual Test Procedure
+To manually test the full notification chain:
+``` bash
+cd /home/robert/WeatherMonitor/safety-monitor
+
+PYTHONPATH=/home/robert/WeatherMonitor/safety-monitor \
+/home/robert/WeatherMonitor/venv/bin/python \
+  -c "from reboot_notify import pre_reboot; pre_reboot('manual test')"
+
+sudo reboot
+```
+
+Expected result:
+1. ⚠️ Pushover: `“Skymonitor reboot triggered – manual test”`
+1. System reboots
+1. After boot:
+  - `reboot-notify.service runs`
+  - ✅ Pushover: “Skymonitor back online – previous reboot reason: manual test”
+1. State file is removed
+1. No further notifications until the next reboot trigger
+
+### 11.6 Troubleshooting Notes
+
+If no notification is received:
+- Verify .env contains valid Pushover credentials
+- Check: `journalctl -u reboot-notify.service -b`
+- Check application logs: `safety-monitor/reboot_notify.log`
+- Confirm network connectivity at boot time
+
+If the reboot reason file does not exist at boot, no post-boot notification will be sent. This is expected behavior.
