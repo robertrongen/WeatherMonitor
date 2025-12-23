@@ -1,11 +1,13 @@
-# Pushover Notification Debug Fix
+# Pushover Notification Debug Fix ✅ RESOLVED
 
 ## Root Cause Analysis
 
 ### Issue
-The `reboot_notify.py` script was not receiving Pushover notifications when calling `pre_reboot()`.
+The `reboot_notify.py` script was sending Pushover notifications successfully (HTTP 200), but they were **delivered silently** - no sound or visual alert.
 
-### Root Cause
+### Root Causes (2 issues found)
+
+#### 1. No Response Validation (Observability Issue)
 The [`send_pushover()`](../reboot_notify.py:14) function had **no response validation**:
 
 1. ❌ **Never checked HTTP status code** (200 = success, 400/401 = credential error)
@@ -13,26 +15,34 @@ The [`send_pushover()`](../reboot_notify.py:14) function had **no response valid
 3. ❌ **Logged success immediately** even if API rejected the request
 4. ❌ **Silent failures** - no way to detect invalid credentials, malformed requests, or API errors
 
-### Comparison with `rain_alarm.py`
-Both files had the same issue - neither validated the HTTP response properly.
+#### 2. Missing Sound Field (Actual Bug)
+**Critical:** [`reboot_notify.py`](../reboot_notify.py:35) had **no `sound` parameter** in the Pushover payload
+
+Comparison with [`rain_alarm.py`](../rain_alarm.py:20):
+- `rain_alarm.py`: ✅ Includes `'sound': 'siren'` → **audible notification**
+- `reboot_notify.py`: ❌ No sound field → **silent delivery** (notification sent but no alert)
+
+Without the `sound` field, Pushover delivered the notification silently. The user never noticed it because:
+- No audible alert (phone didn't ring/vibrate)
+- No obvious visual indicator (depended on device settings)
+- API returned HTTP 200 (message delivered successfully)
 
 ## Code Changes
 
 ### What Changed
 File: [`safety-monitor/reboot_notify.py`](../reboot_notify.py)
 
-**Added diagnostic logging:**
+**Fix 1: Added diagnostic logging** (observability):
 - ✅ Log credential presence check (without exposing values)
 - ✅ Log HTTP status code from Pushover API
 - ✅ Log response body (contains error details)
 - ✅ More specific exception handling (timeout vs network vs other)
 - ✅ Clear success/failure indicators (✅/❌ emojis)
 
-**Behavior unchanged:**
-- Same API endpoint
-- Same request payload
-- Same timeout (5s)
-- Same external behavior
+**Fix 2: Added sound parameter** (bug fix):
+- ✅ Added `"sound": "pushover"` to API payload
+- ✅ Ensures notifications are audible (not silent)
+- ✅ Matches behavior of `rain_alarm.py`
 
 ### Exact Diff
 
@@ -61,6 +71,7 @@ File: [`safety-monitor/reboot_notify.py`](../reboot_notify.py)
                  "user": user,
                  "message": message,
                  "priority": priority,
++                "sound": "pushover",  # Default sound to ensure notification is audible
              },
              timeout=5,
          )

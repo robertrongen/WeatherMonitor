@@ -33,6 +33,7 @@ def send_pushover(message, priority=0):
                 "user": user,
                 "message": message,
                 "priority": priority,
+                "sound": "cosmic",  # Gentle ambient alert sound
             },
             timeout=5,
         )
