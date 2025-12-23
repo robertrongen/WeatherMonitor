@@ -319,9 +319,9 @@ def view_log(logname):
     allowed_logs = {
         'syslog': '/var/log/syslog',
         'allsky': '/var/log/allsky.log',
-        'control': 'logs/control.log',
-        'fetch': 'logs/fetch_data.log',
-        'settings': 'logs/settings.log'
+        'control': '../logs/control.log',
+        'fetch_data': '../logs/fetch_data.log',
+        'settings': '../logs/settings.log'
     }
     if logname not in allowed_logs:
         logger.error(f"Logname {logname} not in allowed_logs")
