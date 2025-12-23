@@ -315,6 +315,7 @@ def control_reset():
 @app.route('/logs/<logname>')
 def view_log(logname):
     """View log files"""
+    logger.info(f"view_log called with logname: {logname}")
     allowed_logs = {
         'syslog': '/var/log/syslog',
         'allsky': '/var/log/allsky.log',
@@ -323,11 +324,14 @@ def view_log(logname):
         'settings': 'logs/settings.log'
     }
     if logname not in allowed_logs:
+        logger.error(f"Logname {logname} not in allowed_logs")
         abort(404)
     log_path = allowed_logs[logname]
+    logger.info(f"Attempting to read log file: {log_path}")
     try:
         with open(log_path, 'r') as f:
             lines = f.readlines()
+        logger.info(f"Successfully read {len(lines)} lines from {log_path}")
         # Show last 100 lines for long logs
         if len(lines) > 100:
             content = ''.join(lines[-100:])
@@ -337,8 +341,10 @@ def view_log(logname):
             header = f'<pre>'
         return f'{header}{content}</pre>'
     except FileNotFoundError:
+        logger.error(f"Log file {log_path} not found")
         return f'<pre>Log file {log_path} not found.</pre>'
     except Exception as e:
+        logger.error(f"Error reading log {log_path}: {str(e)}")
         return f'<pre>Error reading log: {str(e)}</pre>'
 
 if __name__ == '__main__':
