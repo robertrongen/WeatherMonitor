@@ -378,6 +378,7 @@ Notifications are designed to be **idempotent** (no repeats) and **Git-controlle
 - Notifications are handled by a small **Python helper**
 - State is persisted on disk to correlate reboot → boot
 - Post-boot notification is handled via a `systemd` oneshot service
+- Explicit Pushover parameters are used to guarantee **audible alerts**
 
 This allows reliable notification even when the system is unstable.
 
@@ -405,8 +406,21 @@ State file location:
 This location is user-writable and avoids permission issues with `/var/run`.
 
 ---
+### 11.3 Pushover Configuration Requirements
 
-### 11.3 Pre-Reboot Notification (from Bash Watchdogs)
+The following environment variables must be present (typically via `.env`):
+
+```
+PUSHOVER_API_TOKEN
+PUSHOVER_USER_KEY
+```
+
+The notification payload **must include a sound parameter**.
+Without this, Pushover may accept the message (HTTP 200) but deliver it silently.
+
+The implementation explicitly sets: `sound = "pushover"`
+
+### 11.4 Pre-Reboot Notification (from Bash Watchdogs)
 
 Before calling `reboot` in any watchdog script, invoke:
 
@@ -423,7 +437,7 @@ This will:
 
 The reboot is then executed normally: `reboot`
 
-### 11.4 Post-Boot Notification (systemd)
+### 11.5 Post-Boot Notification (systemd)
 
 Post-boot notification is handled by: `/etc/systemd/system/reboot-notify`.service
 
@@ -437,7 +451,7 @@ Service lifecycle:
 - `inactive (dead)` after execution is expected and correct
 - Status `0/SUCCESS` indicates success
 
-### 11.5 Manual Test Procedure
+### 11.6 Manual Test Procedure
 To manually test the full notification chain:
 ``` bash
 cd /home/robert/WeatherMonitor/safety-monitor
