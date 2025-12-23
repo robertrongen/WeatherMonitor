@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 from settings import load_settings
+import psutil
 
 app = Flask(__name__)
 load_dotenv()
@@ -51,6 +52,16 @@ def fetch_control_health():
     except Exception as e:
         logger.error(f"Failed to fetch control health: {e}")
         return {"error": str(e), "status": "unreachable"}
+
+def get_cpu_temperature():
+    """Fetch CPU temperature from system"""
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            temp = f.read()
+        return round(float(temp) / 1000, 2)
+    except Exception as e:
+        logger.warning(f"Failed to fetch CPU temperature: {e}")
+        return None
 
 @app.route('/')
 def index():
