@@ -29,7 +29,7 @@ def should_log(message, interval=log_interval):
     return True
 
 def setup_handlers(logger, log_file, log_level=logging.ERROR, to_stdout=True):
-    log_directory = "/home/robert/github/skymonitor/logs"
+    log_directory = "/home/robert/WeatherMonitor/logs"
     if not os.path.exists(log_directory):
         os.makedirs(log_directory)
     log_file_path = os.path.join(log_directory, log_file)

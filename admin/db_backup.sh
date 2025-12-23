@@ -1,7 +1,7 @@
 #!/bin/bash
 # export_db.sh
 DB_PATH="sky_data_old.db"
-EXPORT_PATH="/home/robert/github/skymonitor/sky_data_export1.sql"
+EXPORT_PATH="/home/robert/WeatherMonitor/sky_data_export1.sql"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$(dirname "$EXPORT_PATH")"

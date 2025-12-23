@@ -1,7 +1,7 @@
 #!/bin/bash
 # import_db.sh
 DB_PATH="sky_data.db"
-EXPORT_PATH="/home/robert/github/skymonitor/sky_data_export.sql"
+EXPORT_PATH="/home/robert/WeatherMonitor/sky_data_export.sql"
 
 # Check if export file exists
 if [ ! -f "$EXPORT_PATH" ]; then
