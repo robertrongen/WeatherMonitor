@@ -317,7 +317,7 @@ def view_log(logname):
     """View log files"""
     allowed_logs = {
         'syslog': '/var/log/syslog',
-        'allsky': 'logs/allsky.log',
+        'allsky': '/var/log/allsky.log',
         'control': 'logs/control.log',
         'fetch': 'logs/fetch_data.log',
         'settings': 'logs/settings.log'
@@ -327,8 +327,15 @@ def view_log(logname):
     log_path = allowed_logs[logname]
     try:
         with open(log_path, 'r') as f:
-            content = f.read()
-        return f'<pre>{content}</pre>'
+            lines = f.readlines()
+        # Show last 100 lines for long logs
+        if len(lines) > 100:
+            content = ''.join(lines[-100:])
+            header = f'<p>Showing last 100 lines of {len(lines)} total lines.</p><pre>'
+        else:
+            content = ''.join(lines)
+            header = f'<pre>'
+        return f'{header}{content}</pre>'
     except FileNotFoundError:
         return f'<pre>Log file {log_path} not found.</pre>'
     except Exception as e:
