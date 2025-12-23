@@ -40,4 +40,7 @@ void wifiFallbackLoop();
 // HTTP status endpoint handler
 void handleWifiStatus();
 
+// Test Wi-Fi connection (diagnose connectivity issues)
+void wifiTestConnection();
+
 #endif // WIFI_FALLBACK_H

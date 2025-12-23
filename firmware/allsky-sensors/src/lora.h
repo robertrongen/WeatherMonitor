@@ -60,4 +60,7 @@ uint8_t encodePayload(uint8_t* buffer);
 // Stop LoRa (called before entering Wi-Fi fallback mode)
 void stopLoRa();
 
+// Handle join retry logic with exponential backoff (call from main loop)
+void loraHandleJoinRetry();
+
 #endif // LORA_H

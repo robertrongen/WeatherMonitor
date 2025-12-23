@@ -55,6 +55,15 @@ bool transmitting = false;
 uint32_t nextTransmissionTime = 0;
 const uint32_t TX_INTERVAL_MS = 60000;  // 60 seconds
 
+// Transmission cycle tracking (shared between do_send and onEvent)
+static bool awaitingTXComplete = false;
+
+// OTAA join retry management
+static uint32_t lastJoinFailTime = 0;
+static uint8_t joinRetryCount = 0;
+const uint32_t JOIN_RETRY_INTERVALS[] = {10000, 30000, 60000, 120000};  // 10s, 30s, 1m, 2m
+const uint8_t JOIN_RETRY_MAX_COUNT = 10;  // Max retries before Wi-Fi fallback
+
 // ============================================================================
 // LORAWAN PAYLOAD ENCODING
 // ============================================================================
@@ -194,12 +203,38 @@ void onEvent(ev_t ev) {
         case EV_JOIN_FAILED:
             Serial.println("EV_JOIN_FAILED");
             fieldTestModeSetState(STATE_JOIN_FAILED);
-            // Note: Join failures will be counted as cycle failures in do_send
+            
+            // Explicit join retry with exponential backoff
+            lastJoinFailTime = millis();
+            joinRetryCount++;
+            consecutiveCycleFails++;  // Count as cycle failure
+            
+            Serial.printf("[LORA] Join failed (attempt %u/%u), consecutive cycle fails: %u\n",
+                         joinRetryCount, JOIN_RETRY_MAX_COUNT, consecutiveCycleFails);
+            
+            // Auto-enable Wi-Fi fallback after max retries
+            if (joinRetryCount >= JOIN_RETRY_MAX_COUNT && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Max join retries reached - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
             break;
+            
         case EV_REJOIN_FAILED:
             Serial.println("EV_REJOIN_FAILED");
             fieldTestModeSetState(STATE_JOIN_FAILED);
-            // Note: Join failures will be counted as cycle failures in do_send
+            
+            // Same retry logic as EV_JOIN_FAILED
+            lastJoinFailTime = millis();
+            joinRetryCount++;
+            consecutiveCycleFails++;
+            
+            Serial.printf("[LORA] Rejoin failed (attempt %u/%u), consecutive cycle fails: %u\n",
+                         joinRetryCount, JOIN_RETRY_MAX_COUNT, consecutiveCycleFails);
+            
+            if (joinRetryCount >= JOIN_RETRY_MAX_COUNT && !wifiFallbackEnabled) {
+                Serial.println("[LORA] Max join retries reached - auto-enabling Wi-Fi fallback");
+                wifiFallbackEnabled = true;
+            }
             break;
         case EV_TXCOMPLETE:
             Serial.println("EV_TXCOMPLETE (TXDONE IRQ received)");
@@ -207,11 +242,11 @@ void onEvent(ev_t ev) {
             txCount++;  // Increment TX counter
             
             // Track transmission cycle success
-            static bool awaitingTXComplete = false;
             if (awaitingTXComplete) {
                 // Successfully completed transmission cycle
                 Serial.println("[LORA] Transmission cycle completed successfully");
                 consecutiveCycleFails = 0;  // Reset failure counter
+                joinRetryCount = 0;  // Reset join retry counter on successful TX
                 awaitingTXComplete = false;
             } else {
                 // Unexpected TX complete without pending cycle
@@ -317,7 +352,6 @@ void do_send(osjob_t* j) {
     Serial.printf("Encoded %u bytes, queueing for transmission\n", payloadLen);
     
     // Track transmission cycle for failure counting
-    static bool awaitingTXComplete = false;
     awaitingTXComplete = true;  // Mark that we're awaiting TX completion
     
     // Queue packet
@@ -363,7 +397,48 @@ void loraInit() {
 
 void stopLoRa() {
     Serial.println("[WIFI] Stopping LMIC...");
+    
+    // Check if LMIC is currently busy with radio operation
+    if (LMIC.opmode & OP_TXRXPEND) {
+        Serial.println("[WIFI] WARNING: LMIC busy during stop - forcing shutdown may corrupt state");
+    }
+    
     // Cancel pending LMIC jobs to prevent retries, joins, or uplinks
     os_clearCallback(&sendjob);
-    Serial.println("[WIFI] Cleared pending LMIC jobs");
+    
+    // Clear LMIC radio operations
+    LMIC.opmode = 0;  // Clear all operation flags
+    
+    Serial.println("[WIFI] LMIC stopped - jobs cleared, opmode reset");
+}
+
+// ============================================================================
+// JOIN RETRY HANDLER (Call from main loop)
+// ============================================================================
+
+void loraHandleJoinRetry() {
+    // Only retry if not joined and we have a pending join failure
+    if (joined || lastJoinFailTime == 0 || joinRetryCount >= JOIN_RETRY_MAX_COUNT) {
+        return;
+    }
+    
+    // Calculate backoff interval (exponential with cap)
+    uint8_t intervalIndex = (joinRetryCount - 1) < 4 ? (joinRetryCount - 1) : 3;
+    uint32_t backoffInterval = JOIN_RETRY_INTERVALS[intervalIndex];
+    
+    // Check if it's time to retry
+    if (millis() - lastJoinFailTime >= backoffInterval) {
+        Serial.printf("[LORA] Retrying join after %lu ms backoff (attempt %u)\n",
+                     backoffInterval, joinRetryCount + 1);
+        
+        // Reset LMIC and retry join
+        LMIC_reset();
+        LMIC_setLinkCheckMode(0);
+        LMIC.dn2Dr = DR_SF9;
+        LMIC_setDrTxpow(DR_SF7, 14);
+        LMIC_startJoining();
+        
+        // Clear failure time to wait for new result
+        lastJoinFailTime = 0;
+    }
 }

@@ -26,7 +26,8 @@ extern uint32_t lastButtonDebounce;
 
 // Button press thresholds
 extern const uint32_t BUTTON_DEBOUNCE_MS;
-extern const uint32_t SHORT_PRESS_MS;       // Minimum for valid press
+extern const uint32_t SHORT_PRESS_MS;       // Minimum debounced press
+extern const uint32_t SHORT_PRESS_MAX_MS;   // Maximum for short press (< 1s)
 extern const uint32_t LONG_PRESS_MS;        // 3 seconds for Wi-Fi fallback
 extern const uint32_t VERY_LONG_PRESS_MS;   // 8 seconds for restart
 

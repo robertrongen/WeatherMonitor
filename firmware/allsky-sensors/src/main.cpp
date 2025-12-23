@@ -33,6 +33,7 @@
 
 #include <Arduino.h>
 #include <lmic.h>
+#include <SPI.h>
 #include "secrets.h"
 
 // Module includes
@@ -152,8 +153,36 @@ void setup() {
     Serial.println("- If join fails, verify byte order and check TTN Live Data tab");
     Serial.println("===================================\n");
     
-    // Initialize LoRa
-    loraInit();
+    // Initialize LoRa hardware but don't start OTAA join
+    // LoRa will only activate on explicit button press or trigger
+    Serial.println("Initializing LoRa hardware (quiescent)...");
+    
+    // Initialize SPI for LoRa hardware
+    SPI.begin(5, 19, 27);
+    Serial.println("✓ SPI initialized (SCK=5, MISO=19, MOSI=27)");
+    
+    // Initialize LMIC but don't join
+    os_init();
+    Serial.println("✓ LMIC initialized (quiescent)");
+    LMIC_reset();
+    
+    // Configure LMIC defaults (but don't start joining)
+    LMIC_setLinkCheckMode(0);
+    LMIC.dn2Dr = DR_SF9;
+    LMIC_setDrTxpow(DR_SF7, 14);
+    
+    Serial.println("\n=== BOOT COMPLETE ===");
+    Serial.println("Default Mode: Wi-Fi Fallback (idle)");
+    Serial.println("Button: Short press (< 1s) to force LoRa join");
+    Serial.println("Button: Long press (>= 3s) to enable Wi-Fi");
+    Serial.println("=======================\n");
+    
+    // Update display to show ready state
+    displayUpdate("READY", "Wi-Fi Fallback Mode", "Press BTN for LoRa", "Hold 3s for Wi-Fi");
+    
+    // Run WiFi test to check network availability
+    delay(2000);  // Brief delay before test
+    wifiTestConnection();
 }
 
 // ============================================================================
@@ -162,23 +191,35 @@ void setup() {
 
 void loop() {
     // Increment loop counter for diagnostics
-    loopCount++;
+    // loopCount++;
     
-    // Periodic loop execution confirmation
-    if (millis() - lastLoopLog >= LOOP_LOG_INTERVAL_MS) {
-        Serial.printf("[LOOP] Running normally - %lu iterations in last %lu ms\n",
-                      loopCount, millis() - lastLoopLog);
-        loopCount = 0;
-        lastLoopLog = millis();
-    }
+    // // Periodic loop execution confirmation
+    // if (millis() - lastLoopLog >= LOOP_LOG_INTERVAL_MS) {
+    //     Serial.printf("[LOOP] Running normally - %lu iterations in last %lu ms\n",
+    //                   loopCount, millis() - lastLoopLog);
+    //     loopCount = 0;
+    //     lastLoopLog = millis();
+    // }
     
     // ============================================================================
     // STATE MACHINE: Handle mode switching between LoRa and Wi-Fi
     // ============================================================================
     
     // Check if Wi-Fi fallback should be activated
-    if (wifiFallbackEnabled && currentMode == MODE_LORA_ACTIVE) {
+    // This handles both: switching from LoRa mode, or activating from idle WiFi mode
+    static bool wifiActivating = false;
+
+    if (wifiFallbackEnabled && !wifiActivating &&  !wifiConnected) {
+        wifiActivating = true;  // Prevent re-entry
+        if (currentMode == MODE_LORA_ACTIVE) {
+            // Switching from LoRa to Wi-Fi
+            Serial.println("[MAIN] Switching from LoRa to Wi-Fi fallback");
+        } else {
+            // Activating Wi-Fi from idle state
+            Serial.println("[MAIN] Activating Wi-Fi from idle state");
+        }
         wifiFallbackStart();
+        wifiActivating = false;
     }
     
     // Check button presses
@@ -192,6 +233,9 @@ void loop() {
         // LoRa mode: Run LMIC scheduler (time-critical, must not be blocked)
         // ONLY service LMIC when in LoRa mode to ensure full quiesce in Wi-Fi mode
         os_runloop_once();
+        
+        // Handle join retry with exponential backoff
+        loraHandleJoinRetry();
         
         // Update field test mode display (non-blocking 2Hz refresh)
         fieldTestModeUpdate();
@@ -237,6 +281,9 @@ void loop() {
             sensorsRead();
             lastWifiSensorRead = millis();
         }
+        
+        // Small delay to allow HTTP server to process
+        delay(5);  // 5ms delay for HTTP responsiveness
     }
     
     // Check display timeout (common to both modes)

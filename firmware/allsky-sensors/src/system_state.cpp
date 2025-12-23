@@ -8,7 +8,8 @@
 // SYSTEM STATE MACHINE
 // ============================================================================
 
-SystemMode currentMode = MODE_LORA_ACTIVE;
+// Default mode: Wi-Fi fallback (LoRa only activates on explicit trigger)
+SystemMode currentMode = MODE_WIFI_FALLBACK;
 
 // Wi-Fi Fallback State
 bool wifiFallbackEnabled = false;

@@ -169,10 +169,12 @@ def settings_page():
 @app.route('/dashboard')
 def dashboard():
     """Dashboard with metrics"""
+    logger.info("Dashboard route called")
     try:
         status = fetch_control_status()
         health = fetch_control_health()
-        
+        logger.info(f"Fetched status: {status.get('error', 'ok')}, health: {health.get('error', 'ok')}")
+
         # If control service is unavailable, provide safe defaults
         if status.get("error") or health.get("error"):
             status = status or {
@@ -183,7 +185,8 @@ def dashboard():
                 "heater_status": "UNKNOWN"
             }
             health = health or {"error": "Control service unreachable", "status": "unreachable"}
-        
+
+        logger.info("Rendering dashboard template")
         return render_template('dashboard.html', status=status, health=health)
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}")
