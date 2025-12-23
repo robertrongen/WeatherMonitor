@@ -304,13 +304,35 @@ def control_reset():
         url = f"{get_control_api_url()}/actuators"
         response = requests.post(url, json={"fan": "auto", "heater": "auto"}, timeout=2)
         response.raise_for_status()
-        
+
         flash('All actuators reset to AUTO mode', 'success')
         return redirect(url_for('index'))
     except Exception as e:
         logger.error(f"Reset control error: {e}")
         flash(f'Reset failed: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+@app.route('/logs/<logname>')
+def view_log(logname):
+    """View log files"""
+    allowed_logs = {
+        'syslog': '/var/log/syslog',
+        'allsky': 'logs/allsky.log',
+        'control': 'logs/control.log',
+        'fetch': 'logs/fetch_data.log',
+        'settings': 'logs/settings.log'
+    }
+    if logname not in allowed_logs:
+        abort(404)
+    log_path = allowed_logs[logname]
+    try:
+        with open(log_path, 'r') as f:
+            content = f.read()
+        return f'<pre>{content}</pre>'
+    except FileNotFoundError:
+        return f'<pre>Log file {log_path} not found.</pre>'
+    except Exception as e:
+        return f'<pre>Error reading log: {str(e)}</pre>'
 
 if __name__ == '__main__':
     # Ensure alert status file exists
