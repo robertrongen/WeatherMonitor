@@ -1,26 +1,18 @@
+# /etc/systemd/system/control.service
 [Unit]
-Description=Skymonitor Control Service (HTTP polling, safety logic, relay control)
-After=network-online.target
-Wants=network-online.target
+Description=Skymonitor Control Service
+After=network.target
 
 [Service]
 Type=simple
 User=robert
-Group=robert
 WorkingDirectory=/home/robert/WeatherMonitor/safety-monitor
-ExecStart=/home/robert/WeatherMonitor/venv/bin/python3 /home/robert/WeatherMonitor/safety-monitor/control.py
-Restart=on-failure
-RestartSec=10
+ExecStart=/home/robert/WeatherMonitor/venv/bin/python /home/robert/WeatherMonitor/safety-monitor/control.py
+Restart=always
+RestartSec=5
+KillMode=process
 StandardOutput=journal
-StandardError=journal
-
-# Performance and safety settings
-Nice=-5
-IOSchedulingClass=realtime
-IOSchedulingPriority=0
-
-# Fail-safe: ensure fans turn ON if service stops
-ExecStopPost=/bin/sh -c 'echo "Service stopped - enforce safe relay defaults" | systemd-cat -t control'
+StandardError=inherit
 
 [Install]
 WantedBy=multi-user.target
