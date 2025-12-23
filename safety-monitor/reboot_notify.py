@@ -8,7 +8,8 @@ from app_logging import setup_logger
 load_dotenv()
 logger = setup_logger("reboot_notify", "reboot_notify.log")
 
-STATE_FILE = "/var/run/reboot_reason"
+STATE_FILE = "/home/robert/.run/reboot_reason"
+os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
 
 def send_pushover(message, priority=0):
     token = os.getenv("PUSHOVER_API_TOKEN")
